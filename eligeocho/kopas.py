@@ -4,7 +4,7 @@ import scipy.special
 from itertools import combinations
 from datetime import timedelta
 import xml.etree.ElementTree as ET
-from konbinazixueErakutsi import konbinazixuerakutsi
+from eligeocho.konbinazixueErakutsi import konbinazixuerakutsi
 start_time = time.monotonic()
 
 def faltadinak(bat,bi,hiru):

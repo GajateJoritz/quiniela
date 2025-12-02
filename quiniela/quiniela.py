@@ -39,7 +39,7 @@ def result(lista, konbodanak):
     resultaue=["1","X","2"]
     plenue=["0-0","0-1","0-2","0-M","1-0","1-1","1-2","1-M","2-0","2-1","2-2","2-M","M-0","M-1","M-2","M-M"]
     plen=["00","01","02","0M","10","11","12","1M","20","21","22","2M","M0","M1","M2","MM"]
-    f= open("resul.txt", "w")
+    f= open("results/resul.txt", "w")
     for i in range(len(lista)):
         #print(lista[i][0])
         #print(resultaue[konbodanak[lista[i][1]][0]],resultaue[konbodanak[lista[i][1]][1]],resultaue[konbodanak[lista[i][1]][2]],resultaue[konbodanak[lista[i][1]][3]],resultaue[konbodanak[lista[i][1]][4]],resultaue[konbodanak[lista[i][1]][5]],resultaue[konbodanak[lista[i][1]][6]],resultaue[konbodanak[lista[i][1]][7]],resultaue[konbodanak[lista[i][1]][8]],resultaue[konbodanak[lista[i][1]][9]],resultaue[konbodanak[lista[i][1]][10]],resultaue[konbodanak[lista[i][1]][11]],resultaue[konbodanak[lista[i][1]][12]],resultaue[konbodanak[lista[i][1]][13]])
@@ -85,7 +85,7 @@ def calcular_benetakue2(danakb, konbin, sobrakx):
 bene=[]
 lae=[]
 
-with open("estimacion.txt", mode="r", encoding="utf-8-sig") as datos:
+with open("quiniela/estimacion.txt", mode="r", encoding="utf-8-sig") as datos:
     valores=[]
     for linea in datos:
         linea=linea.replace(",",".")
@@ -95,12 +95,12 @@ for i in range(0,14):
 for i in range(14,15):
     lae.append([valores[i][0]*valores[i+1][0],valores[i][0]*valores[i+1][1],valores[i][0]*valores[i+1][2],valores[i][0]*valores[i+1][3],valores[i][1]*valores[i+1][0],valores[i][1]*valores[i+1][1],valores[i][1]*valores[i+1][2],valores[i][1]*valores[i+1][3],valores[i][2]*valores[i+1][0],valores[i][2]*valores[i+1][1],valores[i][2]*valores[i+1][2],valores[i][2]*valores[i+1][3],valores[i][3]*valores[i+1][0],valores[i][3]*valores[i+1][1],valores[i][3]*valores[i+1][2],valores[i][3]*valores[i+1][3]])
 
-botie = 2000000
-estimazixue = 3500000
+botie = 0
+estimazixue = 851064
 temporadie = 2026
-jornadie = 16
-plenuehasi= 1
-plenuebukau= 2
+jornadie = 25
+plenuehasi= 8
+plenuebukau= 9
 datos=[34,23,26,34,17,10,13,13,17,10,11,12,13,7.5,8,8]
 url = "https://api.eduardolosilla.es/servicios/v1/probabilidad_real?jornada="+str(jornadie)+"&temporada="+str(temporadie)
 response = requests.get(url)
@@ -161,7 +161,7 @@ for yi in range(0,1000):
     else:
         irabazixek10[yi]=(estimazixue*0.09)/(yi+1)
   
-konbodanak=np.load("motza.npy")
+konbodanak=np.load("combinations/motza.npy")
 print(len(konbodanak))     
 
 cont=0
