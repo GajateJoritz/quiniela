@@ -7,3 +7,4 @@ numba==0.56.4
 gmpy2==2.2.1
 sympy==1.10.1
 requests==2.31.0
+cupy-cuda12x==11.6.0

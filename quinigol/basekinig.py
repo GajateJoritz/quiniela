@@ -10,12 +10,12 @@ class Basekinig():
         a=0
         while a!=16:
             b=0
-            while b!=16:
+            while b!=4:
                 c=0
-                while c!=16:
+                while c!=8:
                     d=0
-                    while d!=16:
-                        e=0
+                    while d!=12:
+                        e=4
                         while e!=16:
                             f=0
                             while f!=16:
@@ -30,7 +30,7 @@ class Basekinig():
 prueba = Basekinig()
 prueba.konbuk()
 lista=np.array(prueba.konbos)
-np.save("kinigmotza",lista)
+np.save("combinations/prueba",lista)
 #listaBuelta=np.load("motza.npy")
 
 end_time = time.monotonic()
