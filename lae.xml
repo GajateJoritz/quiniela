@@ -1,0 +1,19 @@
+<quinielista>
+<porcentajes jornada="6" temporada="2025" activo="si">
+<partido num="1" local="SPORTING" visitante="R.OVIEDO" porc_1="41" porc_X="39" porc_2="20"/>
+<partido num="2" local="CÓRDOBA" visitante="MÁLAGA" porc_1="26" porc_X="35" porc_2="39"/>
+<partido num="3" local="R.FERROL" visitante="MIRANDÉS" porc_1="46" porc_X="30" porc_2="24"/>
+<partido num="4" local="CARTAGENA" visitante="LEVANTE" porc_1="20" porc_X="28" porc_2="52"/>
+<partido num="5" local="ELDENSE" visitante="ALMERÍA" porc_1="21" porc_X="27" porc_2="52"/>
+<partido num="6" local="R.ZARAGOZA" visitante="ELCHE" porc_1="70" porc_X="19" porc_2="11"/>
+<partido num="7" local="ALBACETE" visitante="EIBAR" porc_1="35" porc_X="34" porc_2="31"/>
+<partido num="8" local="CASTELLÓN" visitante="CÁDIZ" porc_1="39" porc_X="29" porc_2="32"/>
+<partido num="9" local="ALEMANIA" visitante="HUNGRÍA" porc_1="88" porc_X="7" porc_2="5"/>
+<partido num="10" local="REP.IRLANDA" visitante="INGLATERRA" porc_1="10" porc_X="14" porc_2="76"/>
+<partido num="11" local="CROACIA" visitante="POLONIA" porc_1="60" porc_X="26" porc_2="14"/>
+<partido num="12" local="PORTUGAL" visitante="ESCOCIA" porc_1="85" porc_X="9" porc_2="6"/>
+<partido num="13" local="FRANCIA" visitante="BÉLGICA" porc_1="74" porc_X="18" porc_2="8"/>
+<partido num="14" local="NORUEGA" visitante="AUSTRIA" porc_1="41" porc_X="32" porc_2="27"/>
+<partido num="15" local="SUIZA" visitante="ESPAÑA" porc_15L_0="28" porc_15L_1="58" porc_15L_2="11" porc_15L_M="3" porc_15V_0="5" porc_15V_1="23" porc_15V_2="51" porc_15V_M="21"/>
+</porcentajes>
+</quinielista>
