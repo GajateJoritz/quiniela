@@ -1,8 +1,8 @@
 import time
 import numpy as np
-from numba import njit, prange
 import os
 import sys
+import src.core_math as engine
 
 # --- CONFIGURATION / CONFIGURACIÓN ---
 # Valores por defecto (se sobrescriben si existe current_data.py)
@@ -12,21 +12,26 @@ BET_PRICE = 1.0
 PRIZE_DISTRIBUTION = np.array([0.10, 0.09, 0.08, 0.08, 0.20]) 
 
 # --- HIGH PRECISION SETTINGS / AJUSTES DE ALTA PRECISIÓN ---
-PORTFOLIO_SIZE = 10       
+PORTFOLIO_SIZE = 50       
 N_SIMULATIONS = 5000000   
 
 # --- DYNAMIC CANDIDATE SELECTION / SELECCIÓN DINÁMICA ---
 MIN_EV_THRESHOLD = 1.60   
-MAX_CANDIDATES_SAFETY = 1000 
+MAX_CANDIDATES_SAFETY = 10000
 
 # --- 1. DATA LOADING (AUTOMATED SOURCE) / CARGA AUTOMÁTICA ---
 LAE_PROBS_MATRIX = None # Inicializamos vacío
+
+# Elige tu objetivo:
+# 1 = "PROB_PROFIT": Maximiza la probabilidad de recuperar la inversión (muchos premios pequeños).
+# 2 = "SORTINO": Busca rentabilidad penalizando solo las pérdidas (Equilibrado).
+OPTIMIZATION_MODE = 1
 
 # Intentamos cargar desde el archivo generado por el scraper
 try:
     # Añadimos el directorio raíz al path por si current_data.py está arriba
     sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    import quinigol.current_data as current_data
+    import quinigol.data.current_data as current_data
     
     print("✅ 'current_data.py' found & loaded.")
     JACKPOT = current_data.JACKPOT
@@ -62,346 +67,14 @@ except:
     print(f"⚠️ Warning: '{npy_path}' not found. Generating random data for testing...")
     COMBINATIONS = np.random.randint(0, 16, (50000, 6)).astype(np.int32)
 
-# --- ANALYTICAL FILTERS (JIT) / FILTROS ANALÍTICOS ---
 
-@njit(fastmath=True)
-def calc_taxed_prize(gross):
-    """Aplica impuesto del 20% a premios > 40.000"""
-    if gross > 40000.0: return (gross - 40000.0) * 0.8 + 40000.0
-    return gross
-
-@njit(fastmath=True)
-def poisson_prize_share(pot, lambda_val):
-    """Calcula dilución del premio por múltiples acertantes"""
-    if lambda_val < 1e-9: return calc_taxed_prize(pot)
-    share = (1.0 - np.exp(-lambda_val)) / lambda_val
-    return calc_taxed_prize(pot * share)
-
-@njit(parallel=True, fastmath=True)
-def get_top_candidates(combs, real_probs, lae_probs, est, jack, dist):
-    """
-    Calcula el EV Total sumando las categorías 6, 5, 4, 3 y 2.
-    """
-    n = combs.shape[0]
-    evs = np.zeros(n, dtype=np.float64)
-    
-    # Pre-calcular botes por categoría (Prize Pools)
-    cat_pots = est * dist 
-    
-    # Bote puro para la 1ª categoría
-    pot6 = jack 
-    
-    pot5 = cat_pots[1]
-    pot4 = cat_pots[2]
-    pot3 = cat_pots[3]
-    pot2 = cat_pots[4]
-    
-    for i in prange(n):
-        # 1. Extraer probabilidades de la matriz para esta columna
-        p_real = np.zeros(6, dtype=np.float64)
-        p_lae = np.zeros(6, dtype=np.float64)
-        
-        for m in range(6):
-            s = combs[i, m]
-            p_real[m] = real_probs[m, s]
-            p_lae[m] = lae_probs[m, s]
-            
-        # -------------------------------------------------------
-        # CÁLCULO DE PROBABILIDADES (REALES Y LAE)
-        # -------------------------------------------------------
-
-        # --- 6 ACIERTOS (PLENO) ---
-        prob_real_6 = 1.0
-        prob_lae_6 = 1.0
-        for m in range(6):
-            prob_real_6 *= p_real[m]
-            prob_lae_6 *= p_lae[m]
-            
-        # --- 5 ACIERTOS (FALLA 1) ---
-        prob_real_5 = 0.0
-        prob_lae_5 = 0.0
-        for m in range(6):
-            term_real = (1.0 - p_real[m])
-            term_lae = (1.0 - p_lae[m])
-            for x in range(6):
-                if x != m:
-                    term_real *= p_real[x]
-                    term_lae *= p_lae[x]
-            prob_real_5 += term_real
-            prob_lae_5 += term_lae
-
-        # --- 4 ACIERTOS (FALLAN 2) ---
-        prob_real_4 = 0.0
-        prob_lae_4 = 0.0
-        for m in range(6):
-            for k in range(m + 1, 6):
-                term_real = (1.0 - p_real[m]) * (1.0 - p_real[k])
-                term_lae = (1.0 - p_lae[m]) * (1.0 - p_lae[k])
-                for x in range(6):
-                    if x != m and x != k:
-                        term_real *= p_real[x]
-                        term_lae *= p_lae[x]
-                prob_real_4 += term_real
-                prob_lae_4 += term_lae
-
-        # --- 3 ACIERTOS (FALLAN 3) ---
-        prob_real_3 = 0.0
-        prob_lae_3 = 0.0
-        for m in range(6):
-            for k in range(m + 1, 6):
-                for j in range(k + 1, 6):
-                    term_real = (1.0 - p_real[m]) * (1.0 - p_real[k]) * (1.0 - p_real[j])
-                    term_lae = (1.0 - p_lae[m]) * (1.0 - p_lae[k]) * (1.0 - p_lae[j])
-                    for x in range(6):
-                        if x != m and x != k and x != j:
-                            term_real *= p_real[x]
-                            term_lae *= p_lae[x]
-                    prob_real_3 += term_real
-                    prob_lae_3 += term_lae
-
-        # --- 2 ACIERTOS (ACIERTAN 2) ---
-        prob_real_2 = 0.0
-        prob_lae_2 = 0.0
-        for m in range(6):
-            for k in range(m + 1, 6):
-                term_real = p_real[m] * p_real[k]
-                term_lae = p_lae[m] * p_lae[k]
-                for x in range(6):
-                    if x != m and x != k:
-                        term_real *= (1.0 - p_real[x])
-                        term_lae *= (1.0 - p_lae[x])
-                prob_real_2 += term_real
-                prob_lae_2 += term_lae
-
-        # -------------------------------------------------------
-        # CÁLCULO DE EV
-        # -------------------------------------------------------
-        
-        l6 = est * prob_lae_6
-        ev6 = prob_real_6 * poisson_prize_share(pot6, l6)
-        
-        l5 = est * prob_lae_5
-        ev5 = prob_real_5 * poisson_prize_share(pot5, l5)
-        
-        l4 = est * prob_lae_4
-        ev4 = prob_real_4 * poisson_prize_share(pot4, l4)
-        
-        l3 = est * prob_lae_3
-        ev3 = prob_real_3 * poisson_prize_share(pot3, l3)
-        
-        l2 = est * prob_lae_2
-        ev2 = prob_real_2 * poisson_prize_share(pot2, l2)
-        
-        # EV TOTAL
-        evs[i] = ev6 + ev5 + ev4 + ev3 + ev2
-        
-    return evs
-
-# --- MONTE CARLO CORE (HEAVY DUTY) / NÚCLEO MONTECARLO ---
-
-@njit(parallel=True)
-def generate_scenarios(probs_matrix, n_sims):
-    """Genera millones de jornadas ganadoras simuladas"""
-    scenarios = np.zeros((n_sims, 6), dtype=np.int8) 
-    
-    for m in range(6):
-        cdf = np.cumsum(probs_matrix[m])
-        for i in prange(n_sims):
-            rand_val = np.random.random()
-            idx = 0
-            while idx < 15 and rand_val > cdf[idx]:
-                idx += 1
-            scenarios[i, m] = idx
-    return scenarios
-
-@njit(parallel=True)
-def precompute_hits_matrix(candidates, scenarios):
-    """
-    Calcula matriz de aciertos usando int8.
-    """
+def greedy_portfolio_selection(candidate_indices, combinations, scenarios, dynamic_prizes, estimation, jackpot, prize_dist, target_size, mode):
     n_sims = scenarios.shape[0]
-    n_cands = candidates.shape[0]
-    hits_matrix = np.zeros((n_sims, n_cands), dtype=np.int8)
-    
-    for i in prange(n_sims):
-        for c in range(n_cands):
-            hits = 0
-            for m in range(6):
-                if candidates[c, m] == scenarios[i, m]:
-                    hits += 1
-            hits_matrix[i, c] = hits
-            
-    return hits_matrix
-
-
-@njit(parallel=True, fastmath=True)
-def precompute_scenario_prizes(scenarios, lae_probs, estimation, jackpot, dist):
-    """
-    Calcula cuánto pagaría cada categoría de premio en cada uno de los 5M de escenarios.
-    Basado en la probabilidad LAE de que ese escenario ocurra.
-    """
-    n_sims = scenarios.shape[0]
-    # Matriz: [Simulacion, Categoría] -> Valor del premio en Euros
-    # Indices: 6=Pleno, 5=5ac, ... 
-    dynamic_prizes = np.zeros((n_sims, 7), dtype=np.float32) # float32 ahorra RAM
-    
-    # Botes Totales (Pots)
-    pot6 = jackpot + (estimation * dist[0])
-    pot5 = estimation * dist[1]
-    pot4 = estimation * dist[2]
-    pot3 = estimation * dist[3]
-    pot2 = estimation * dist[4]
-    
-    for i in prange(n_sims):
-        # 1. Recuperar probabilidades LAE de LOS RESULTADOS QUE SALIERON en este escenario
-        p_lae = np.zeros(6, dtype=np.float32)
-        for m in range(6):
-            res = scenarios[i, m]
-            p_lae[m] = lae_probs[m, res]
-            
-        # 2. Calcular cuánta gente tendría X aciertos contra este escenario
-        # (Es la misma lógica que get_top_candidates pero usando p_lae sobre sí mismo)
-        
-        # Probabilidad de que un apostante random tenga 6 aciertos (Coincida exacto)
-        prob_6 = 1.0
-        for m in range(6): prob_6 *= p_lae[m]
-            
-        # Probabilidad de que un apostante random tenga 5 aciertos
-        prob_5 = 0.0
-        for m in range(6):
-            term = (1.0 - p_lae[m])
-            for x in range(6):
-                if x != m: term *= p_lae[x]
-            prob_5 += term
-            
-        # Probabilidad de que un apostante random tenga 4 aciertos
-        prob_4 = 0.0
-        for m in range(6):
-            for k in range(m + 1, 6):
-                term = (1.0 - p_lae[m]) * (1.0 - p_lae[k])
-                for x in range(6):
-                    if x != m and x != k: term *= p_lae[x]
-                prob_4 += term
-        
-        # Probabilidad de que un apostante random tenga 3 aciertos (Aprox rápida)
-        # Para 3 y 2 usamos aproximación si queremos velocidad extrema, 
-        # pero Numba aguanta el cálculo completo.
-        prob_3 = 0.0
-        for m in range(6):
-            for k in range(m + 1, 6):
-                for j in range(k + 1, 6):
-                    term = (1.0 - p_lae[m]) * (1.0 - p_lae[k]) * (1.0 - p_lae[j])
-                    for x in range(6):
-                        if x != m and x != k and x != j: term *= p_lae[x]
-                    prob_3 += term
-
-        # Probabilidad de que un apostante random tenga 2 aciertos
-        prob_2 = 0.0
-        for m in range(6):
-            for k in range(m + 1, 6):
-                # Acierta m y k, falla el resto
-                term = p_lae[m] * p_lae[k]
-                for x in range(6):
-                    if x != m and x != k: term *= (1.0 - p_lae[x])
-                prob_2 += term
-
-        # 3. Calcular Premios Dinámicos (Euros) usando Poisson Share
-        # Lambda = Cuántos ganadores se esperan
-        
-        # Cat 6
-        l6 = estimation * prob_6
-        dynamic_prizes[i, 6] = poisson_prize_share(pot6, l6)
-        
-        # Cat 5
-        l5 = estimation * prob_5
-        dynamic_prizes[i, 5] = poisson_prize_share(pot5, l5)
-        
-        # Cat 4
-        l4 = estimation * prob_4
-        dynamic_prizes[i, 4] = poisson_prize_share(pot4, l4)
-        
-        # Cat 3
-        l3 = estimation * prob_3
-        dynamic_prizes[i, 3] = poisson_prize_share(pot3, l3)
-        
-        # Cat 2
-        l2 = estimation * prob_2
-        dynamic_prizes[i, 2] = poisson_prize_share(pot2, l2)
-        
-    return dynamic_prizes
-
-# Elige tu objetivo:
-# 1 = "PROB_PROFIT": Maximiza la probabilidad de recuperar la inversión (muchos premios pequeños).
-# 2 = "SORTINO": Busca rentabilidad penalizando solo las pérdidas (Equilibrado).
-OPTIMIZATION_MODE = 2
-
-# --- OPTIMIZED METRIC FUNCTIONS (JIT) ---
-
-@njit(fastmath=True)
-def calculate_metric_numba(current_earnings, new_hits, dynamic_prizes, mode, cost_so_far):
-    """
-    Calcula la métrica de calidad de la cartera según el modo elegido.
-    """
-    n = len(current_earnings)
- 
-    # Variables acumuladoras
-    sum_val = 0.0      # Para media (EV)
-    sum_sq_down = 0.0  # Para Sortino (Riesgo de bajada)
-    wins_count = 0.0   # Para Probabilidad de Beneficio
-    
-    # El coste aumenta al añadir una apuesta (Coste actual + 1)
-    new_cost = cost_so_far + 1.0
-    
-    for i in range(n):
-        val = current_earnings[i] # Ganancia actual en simulación i
-        h = new_hits[i]           # Aciertos del nuevo candidato en simulación i
-
-        # Sumamos premio DINÁMICO de esta simulación específica 'i'
-        if h >= 2: # Solo si hay premio (2 a 6)
-            val += dynamic_prizes[i, h]
-        
-        # --- CÁLCULOS SEGÚN MODO ---
-        
-        if mode == 1: # PROB_PROFIT
-            # Contamos si en este escenario ganamos más de lo que gastamos
-            if val > new_cost:
-                wins_count += 1.0
-                
-        elif mode == 2: # SORTINO RATIO
-            sum_val += val
-            # Solo sumamos al riesgo si perdemos dinero (val < new_cost)
-            # El riesgo es la desviación de las pérdidas al cuadrado
-            if val < new_cost:
-                diff = new_cost - val
-                sum_sq_down += diff * diff
-                
-
-    # --- RETORNO DE RESULTADOS ---
-    
-    if mode == 1: # Probabilidad de Rentabilizar
-        return wins_count / n
-        
-    elif mode == 2: # Sortino Ratio
-        mean_profit = (sum_val / n) - new_cost # Beneficio neto medio
-        if sum_sq_down < 1e-9: 
-            return 999999.0 
-        downside_deviation = np.sqrt(sum_sq_down / n)
-        return mean_profit / downside_deviation
-
-    return 0.0
-
-@njit
-def update_earnings_numba(current_earnings, new_hits, dynamic_prizes):
-    """Actualiza el array de ganancias acumuladas (Incluye 2 aciertos)"""
-    n = len(current_earnings)
-    for i in range(n):
-        h = new_hits[i]
-        if h >= 2:
-            current_earnings[i] += dynamic_prizes[i, h]
-
-def greedy_portfolio_selection(hits_matrix, dynamic_prizes, candidate_indices, combinations, estimation, jackpot, prize_dist, target_size, mode):
-    n_sims, n_cands = hits_matrix.shape
+    n_cands = len(candidate_indices)
     selected_local_indices = []
+    
+    # Configuración de Premios (Referencia para valores fijos si hiciera falta, pero usamos dynamic)
+    prizes_value = np.zeros(7) # Dummy array para compatibilidad si hiciera falta
     
     current_portfolio_earnings = np.zeros(n_sims, dtype=np.float64)
     
@@ -409,55 +82,55 @@ def greedy_portfolio_selection(hits_matrix, dynamic_prizes, candidate_indices, c
     print(f"   > Strategy: {mode_names.get(mode, 'Unknown')}")
     print(f"   > Starting Greedy Selection Loop ({target_size} steps)...")
     
-    for step in range(target_size):
-        best_candidate = -1
-        best_metric = -float('inf')
-        
-        # Coste acumulado actual (para calcular el downside risk correctamente)
-        current_cost = float(step)
-        
-        # Iterar sobre candidatos
-        for c in range(n_cands):
-            if c in selected_local_indices: continue
+    try:
+        for step in range(target_size):
+            t_step = time.time()
+            best_candidate = -1
+            best_metric = -float('inf')
             
-            # --- OPTIMIZED METRIC CALCULATION ---
-            metric = calculate_metric_numba(current_portfolio_earnings, hits_matrix[:, c], dynamic_prizes, mode, current_cost)
+            # Coste acumulado actual (para calcular el downside risk correctamente)
+            current_cost = float(step)
             
-            if metric > best_metric:
-                best_metric = metric
-                best_candidate = c
-        
-        if (step % 1) == 0: 
-            sys.stdout.write(f"\r     [Step {step+1}/{target_size}] Best Candidate found (Metric: {best_metric:.4f})")
-            sys.stdout.flush()
-
-        if best_candidate != -1:
-            curr_comb = combinations[candidate_indices[best_candidate]]
-            max_matches = 0
-            most_similar_idx = -1
-            
-            if len(selected_local_indices) > 0:
-                for i, saved_c_idx in enumerate(selected_local_indices):
-                    saved_comb = combinations[candidate_indices[saved_c_idx]]
-                    # Contamos coincidencias (0 a 6)
-                    matches = np.sum(curr_comb == saved_comb)
-                    if matches > max_matches:
-                        max_matches = matches
-                        most_similar_idx = i + 1 # +1 para que coincida con "Bet #1"
+            # Iterar sobre candidatos
+            for i, c_idx in enumerate(candidate_indices):
+                # Check si ya está seleccionado
+                if c_idx in [candidate_indices[x] for x in selected_local_indices]: 
+                    continue
                 
-                diff_msg = f"(Max overlap: {max_matches}/6 with Bet #{most_similar_idx})"
-            else:
-                diff_msg = "(Initial Anchor Bet)"
+                # Obtener combinación
+                cand_comb = combinations[c_idx]
+                
+                # --- CALCULATION ON THE FLY ---
+                # Pasamos la combinación y los escenarios. Numba hace el cruce.
+                metric = engine.calculate_candidate_metric(cand_comb, scenarios, current_portfolio_earnings, dynamic_prizes, prizes_value, mode, current_cost)
+                
+                if metric > best_metric:
+                    best_metric = metric
+                    best_candidate = i # Guardamos el índice local de la lista de candidatos
+            
+            if best_candidate != -1:
+                # Diagnóstico diversidad
+                curr_comb = combinations[candidate_indices[best_candidate]]
+                max_match = 0
+                if len(selected_local_indices) > 0:
+                    for sel_local in selected_local_indices:
+                        prev = combinations[candidate_indices[sel_local]]
+                        m = np.sum(curr_comb == prev)
+                        if m > max_match: max_match = m
+                    diff_msg = f"(Overlap: {max_match}/6)"
+                else: diff_msg = "(Base)"
 
-            selected_local_indices.append(best_candidate)
-            update_earnings_numba(current_portfolio_earnings, hits_matrix[:, best_candidate], dynamic_prizes)
-            
-            # Imprimimos la selección confirmada
-            print(f" -> Selected #{best_candidate} {diff_msg}")
-            
-        else:
-            print("\n     No more valid candidates.")
-            break
+                selected_local_indices.append(best_candidate)
+                
+                # Actualizar ganancias permanentemente
+                engine.update_earnings_on_the_fly(current_portfolio_earnings, curr_comb, scenarios, dynamic_prizes)
+                
+                print(f"     [Step {step+1}] Selected #{best_candidate} (Metric: {best_metric:.4f}) {diff_msg} [{time.time()-t_step:.2f}s]")
+            else:
+                print("\n     No more valid candidates.")
+                break
+    except KeyboardInterrupt:
+        print("\n\n🛑 STOPPED BY USER (CTRL+C). Saving current portfolio...")
             
     print("\n")        
     return selected_local_indices, current_portfolio_earnings
@@ -473,7 +146,7 @@ if __name__ == "__main__":
     
     # 1. Pre-filtro
     print("1. Filtering top candidates via Analytical EV...")
-    evs = get_top_candidates(COMBINATIONS, REAL_PROBS_MATRIX, LAE_PROBS_MATRIX, ESTIMATION, JACKPOT, PRIZE_DISTRIBUTION)
+    evs = engine.get_top_candidates(COMBINATIONS, REAL_PROBS_MATRIX, LAE_PROBS_MATRIX, ESTIMATION, JACKPOT, PRIZE_DISTRIBUTION)
     
     # --- DYNAMIC SELECTION LOGIC ---
     # Seleccionamos todo lo que supere el umbral
@@ -518,31 +191,21 @@ if __name__ == "__main__":
     
     # 2. Generación Escenarios
     print(f"2. Generating {N_SIMULATIONS:,} scenarios...")
-    t0 = time.time()
-    scenarios = generate_scenarios(REAL_PROBS_MATRIX, N_SIMULATIONS)
-    print(f"   Done in {time.time()-t0:.2f}s")
-    
-    # --- PRE-CÁLCULO DE PREMIOS DINÁMICOS ---
-    print(f"2b. Calculating Dynamic Prizes for {N_SIMULATIONS:,} scenarios (Using LAE data)...")
-    t0 = time.time()
-    # Esta matriz ocupará: 5M * 7 * 4bytes = 140MB (Muy ligero)
-    dynamic_prizes = precompute_scenario_prizes(scenarios, LAE_PROBS_MATRIX, ESTIMATION, JACKPOT, PRIZE_DISTRIBUTION)
-    print(f"   Done in {time.time()-t0:.2f}s. (Prizes adjusted by difficulty)")
+    scenarios = engine.generate_scenarios(REAL_PROBS_MATRIX, N_SIMULATIONS)
+    dynamic_prizes = engine.precompute_scenario_prizes(scenarios, LAE_PROBS_MATRIX, ESTIMATION, JACKPOT, PRIZE_DISTRIBUTION)
 
-    # 3. Matriz Aciertos
-    mem_gb = (N_SIMULATIONS * len(top_indices)) / (1024**3)
-    print(f"3. Building Hits Matrix (~{mem_gb:.2f} GB RAM required)...")
-    t0 = time.time()
-    hits_matrix = precompute_hits_matrix(top_combinations, scenarios)
-    print(f"   Done in {time.time()-t0:.2f}s")
-    
-    # 4. Optimización
-    print("4. Optimizing Portfolio (Greedy Sharpe Selection)...")
-    sel_local_indices, final_earnings = greedy_portfolio_selection(
-        hits_matrix, dynamic_prizes, top_indices, COMBINATIONS, ESTIMATION, JACKPOT, PRIZE_DISTRIBUTION, PORTFOLIO_SIZE, OPTIMIZATION_MODE
+    # 3. Optimización (Sin matriz intermedia)
+    print(f"3. Optimizing Portfolio")
+    sel_indices_local, final_earnings = greedy_portfolio_selection(
+        top_indices, 
+        COMBINATIONS, 
+        scenarios, # Pasamos escenarios raw
+        dynamic_prizes,
+        ESTIMATION, JACKPOT, PRIZE_DISTRIBUTION, 
+        PORTFOLIO_SIZE, OPTIMIZATION_MODE
     )
     
-    final_global_indices = top_indices[sel_local_indices]
+    final_global_indices = top_indices[sel_indices_local]
     
     # 5. Resultados
     print("\n" + "="*50)
@@ -591,11 +254,6 @@ if __name__ == "__main__":
     print(f"Volatilidad (StdDev):   {std_dev_earnings:.2f} €")
     
     # Recalcular aciertos exactos para la curiosidad
-    final_hits = hits_matrix[:, sel_local_indices]
-    best_hit = np.max(final_hits, axis=1) # El mejor acierto de la jornada
-    count_6 = np.sum(best_hit == 6)
-    
-    print(f"Plenos (6) estimados:   {count_6} en {N_SIMULATIONS:,} simulaciones.")
     
     print("\n--- SELECTED BETS ---")
     labels = ["0-0","0-1","0-2","0-M","1-0","1-1","1-2","1-M","2-0","2-1","2-2","2-M","M-0","M-1","M-2","M-M"]
