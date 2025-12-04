@@ -26,8 +26,7 @@ def get_top_candidates(combs, real_probs, lae_probs, est, jack, dist):
     # Pre-calcular botes por categoría (Prize Pools)
     cat_pots = est * dist 
     
-    # Bote puro para la 1ª categoría
-    pot6 = jack 
+    pot6 = jack + cat_pots[0]
     
     pot5 = cat_pots[1]
     pot4 = cat_pots[2]
@@ -304,6 +303,9 @@ def calculate_metric_numba(current_earnings, new_hits, dynamic_prizes, mode, cos
                 diff = new_cost - val
                 sum_sq_down += diff * diff
                 
+        elif mode == 3: # PROB_RECOVER_50 (Ganar > 50% coste)
+            if val >= (new_cost * 0.5):
+                wins_count += 1.0
 
     # --- RETORNO DE RESULTADOS ---
     
@@ -316,6 +318,9 @@ def calculate_metric_numba(current_earnings, new_hits, dynamic_prizes, mode, cos
             return 999999.0 
         downside_deviation = np.sqrt(sum_sq_down / n)
         return mean_profit / downside_deviation
+    
+    elif mode == 3: # Probabilidad de Recuperar 50%
+        return wins_count / n
 
     return 0.0
 
@@ -339,7 +344,6 @@ def calculate_candidate_metric(candidate_comb, scenarios, current_earnings, dyna
     NO usa memoria extra.
     """
     n = len(current_earnings)
-    p6, p5, p4, p3, p2 = prizes[6], prizes[5], prizes[4], prizes[3], prizes[2]
     
     # Acumuladores (Thread-safe reduction es complejo en numba parallel puro para múltiples variables,
     # así que hacemos un truco: cada hilo calcula su trozo y devolvemos la suma al final no se puede facil.
@@ -369,15 +373,15 @@ def calculate_candidate_metric(candidate_comb, scenarios, current_earnings, dyna
     # 2. Reducción (Calcular métricas sobre el array resultante)
     # Esto es rápido.
     
+    new_cost = cost_so_far + 1.0
+    
     if mode == 1: # PROB_PROFIT
-        new_cost = cost_so_far + 1.0
         wins = 0.0
         for i in prange(n):
             if temp_earnings[i] > new_cost: wins += 1.0
         return wins / n
         
     elif mode == 2: # SORTINO
-        new_cost = cost_so_far + 1.0
         sum_val = 0.0
         sum_sq_down = 0.0
         
@@ -391,6 +395,13 @@ def calculate_candidate_metric(candidate_comb, scenarios, current_earnings, dyna
         mean_profit = (sum_val / n) - new_cost
         if sum_sq_down < 1e-9: return 999999.0
         return mean_profit / np.sqrt(sum_sq_down / n)
+        
+    elif mode == 3: # PROB_RECOVER_50
+        wins = 0.0
+        threshold = new_cost * 0.5
+        for i in prange(n):
+            if temp_earnings[i] >= threshold: wins += 1.0
+        return wins / n
         
     return 0.0
 
