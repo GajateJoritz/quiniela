@@ -261,7 +261,13 @@ def precompute_scenario_prizes(scenarios, lae_probs, estimation, jackpot, dist):
         
         # Cat 2
         l2 = estimation * prob_2
-        dynamic_prizes[i, 2] = poisson_prize_share(pot2, l2)
+        prize_2 = poisson_prize_share(pot2, l2)
+        
+        # --- NEW RULE: IF PRIZE < 1 EURO, SET TO 0 ---
+        # --- NUEVA REGLA: SI PREMIO < 1 EURO, PONER A 0 ---
+        if prize_2 < 1.0:
+            prize_2 = 0.0
+        dynamic_prizes[i, 2] = prize_2
         
     return dynamic_prizes
 

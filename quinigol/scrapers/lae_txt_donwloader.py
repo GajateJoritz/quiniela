@@ -8,8 +8,8 @@ import re
 BASE_PATH = "https://www.loteriasyapuestas.es/f/loterias/documentos/El%20Quinigol/Estad%C3%ADsticas%20de%20pron%C3%B3sticos"
 
 # Estos se usarán solo si el usuario deja el input vacío
-DEFAULT_JACKPOT = 0.0
-DEFAULT_ESTIMATION = 100000.0
+DEFAULT_JACKPOT = 384065.3
+DEFAULT_ESTIMATION = 210000.0
 
 def get_current_season_strings():
     """Calcula las cadenas de temporada (Ej: 2025_2026 y 25-26)."""
@@ -32,7 +32,7 @@ def download_lae_txt(jornada):
     season = get_current_season_strings()
     jornada_str = str(jornada).zfill(2)
     
-    suffixes = ["_M", "", "_V", "_S"]
+    suffixes = ["_V","_J","_X","_M", "",  "_S", "_L"]
     
     print(f"--- Buscando Jornada {jornada} (Temp. {season['SHORT']}) ---")
     
@@ -101,7 +101,7 @@ def parse_txt_content(raw_text):
 
 def generate_current_data_file(probs_rows, jornada, jackpot, estimation):
     """Crea el archivo current_data.py con SOLO los datos de LAE y financieros."""
-    output_file = "quinigol/current_data.py"
+    output_file = "quinigol/data/current_data.py"
     
     # Formatear la lista para escribirla como código Python
     probs_string = "[\n"

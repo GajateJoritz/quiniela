@@ -117,6 +117,9 @@ def precompute_scenario_prizes_gpu(scenarios_T_gpu, lae_probs_cpu, estimation, j
     dynamic_prizes[:, 4] = calc_share(2, prob_4)
     dynamic_prizes[:, 3] = calc_share(3, prob_3)
     dynamic_prizes[:, 2] = calc_share(4, prob_2)
+
+    p2_values = dynamic_prizes[:, 2]
+    dynamic_prizes[:, 2] = cp.where(p2_values < 1.0, 0.0, p2_values)
     
     return dynamic_prizes
 
@@ -157,7 +160,7 @@ def greedy_portfolio_selection_gpu(candidate_indices, all_combinations_cpu, scen
     
     print(f"   ⚖️  Optimized Batch Size: {BATCH_SIZE} (Low Memory Footprint)")
     
-    mode_names = {1: "PROBABILITY OF PROFIT", 3: "RECOVER 50%"}
+    mode_names = {1: "PROBABILITY OF PROFIT", 3: "RECOVER 50%", 4: f"PROB TARGET (> {target_size}€)"}
     print(f"   > Strategy: {mode_names.get(mode, 'Unknown')}")
     print(f"   > Starting Greedy Selection Loop ({target_size} steps)...")
     print(f"   > Press CTRL+C to stop early.\n")
@@ -174,7 +177,14 @@ def greedy_portfolio_selection_gpu(candidate_indices, all_combinations_cpu, scen
             
             cost_so_far = float(step)
             new_cost = cost_so_far + 1.0
-            threshold_recover = new_cost * 0.5
+            if mode == 1:
+                threshold = new_cost # Must cover current size
+            elif mode == 3:
+                threshold = new_cost * 0.5
+            elif mode == 4:
+                threshold = float(target_size) # Must cover FINAL size
+            else:
+                threshold = new_cost
             
             # --- BATCH LOOP ---
             for i in range(0, n_cands, BATCH_SIZE):
@@ -210,13 +220,7 @@ def greedy_portfolio_selection_gpu(candidate_indices, all_combinations_cpu, scen
                 total_earnings_batch = current_earnings[None, :] + prizes_batch
                 
                 # Metric Function
-                if mode == 1: # Prob Profit
-                    # Count where total > cost, sum rows, divide by n_sims
-                    metrics_batch = cp.mean(total_earnings_batch > new_cost, axis=1)
-                elif mode == 3: # Recover 50%
-                    metrics_batch = cp.mean(total_earnings_batch >= threshold_recover, axis=1)
-                else:
-                    metrics_batch = cp.zeros(current_bs)
+                metrics_batch = cp.mean(total_earnings_batch > threshold, axis=1)
 
                 # 4. MASKING & SELECTION
                 # Apply mask to the batch part
@@ -248,6 +252,7 @@ def greedy_portfolio_selection_gpu(candidate_indices, all_combinations_cpu, scen
                 current_earnings += dynamic_prizes_gpu[sim_range, b_hits]
                 
                 # Display Metrics
+                prob_target = (cp.count_nonzero(current_earnings >= float(target_size)) / n_sims) * 100
                 prob_profit_disp = (cp.count_nonzero(current_earnings > new_cost) / n_sims) * 100
                 prob_any_disp = (cp.count_nonzero(current_earnings > 0) / n_sims) * 100
                 
@@ -261,7 +266,7 @@ def greedy_portfolio_selection_gpu(candidate_indices, all_combinations_cpu, scen
                     max_match = int(cp.max(overlaps))
                     
                 diff_msg = f"Ovlp:{max_match}" if len(selected_indices_local) > 1 else "Base"
-                print(f"     [Step {step+1}] #{best_cand_idx:<5} | Profit: {prob_profit_disp:5.2f}% | Any: {prob_any_disp:5.2f}% | {diff_msg} [{time.time()-t_step:.2f}s]")
+                print(f"     [Step {step+1}] #{best_cand_idx:<5} | Target({int(target_size)}€): {prob_target:5.2f}% | Profit: {prob_profit_disp:5.2f}% | Any: {prob_any_disp:5.2f}% | {diff_msg} [{time.time()-t_step:.2f}s]")
                 
             else:
                 print("   ⚠️ No improvement.")

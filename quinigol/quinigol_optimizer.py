@@ -7,17 +7,17 @@ import src.core_math as engine
 # --- CONFIGURATION / CONFIGURACIÓN ---
 # Valores por defecto (se sobrescriben si existe current_data.py)
 JACKPOT = 0.0        
-ESTIMATION = 100000.0     
+ESTIMATION = 0.0    
 BET_PRICE = 1.0           
 PRIZE_DISTRIBUTION = np.array([0.10, 0.09, 0.08, 0.08, 0.20]) 
 
 # --- HIGH PRECISION SETTINGS / AJUSTES DE ALTA PRECISIÓN ---
-PORTFOLIO_SIZE = 5       
-N_SIMULATIONS = 1000000   
+PORTFOLIO_SIZE = 20       
+N_SIMULATIONS = 500000   
 
 # --- DYNAMIC CANDIDATE SELECTION / SELECCIÓN DINÁMICA ---
-MIN_EV_THRESHOLD = 1.60   
-MAX_CANDIDATES_SAFETY = 50000
+MIN_EV_THRESHOLD = 1.30   
+MAX_CANDIDATES_SAFETY = 20000000
 
 # --- 1. DATA LOADING (AUTOMATED SOURCE) / CARGA AUTOMÁTICA ---
 LAE_PROBS_MATRIX = None # Inicializamos vacío
@@ -44,12 +44,12 @@ except ImportError:
 
 # --- 2. DATA LOADING (MANUAL REAL ODDS) / CARGA CUOTAS REALES ---
 # Esto lo mantienes manual aquí para tener control total
-real_probs_1 = [19,9.5,8,4.75,21,10,9,5.5,41,19,17,11,91,51,36,19]
-real_probs_2 = [13,7.5,7.5,6,15,8,8.5,7,34,19,17,15,96,56,46,34]
-real_probs_3 = [8,15,41,161,5.5,8,23,81,5.5,9,26,76,5.5,9,26,67]
-real_probs_4 = [8,11,23,71,5.5,7,17,51,7,9,21,51,9,11,23,56]
-real_probs_5 = [13,9,10,15,11,7,9,10,17,11,13,15,23,17,21,29]
-real_probs_6 = [29,41,51,201,13,15,29,61,10,9.5,19,46,4,3.75,7.5,15]
+real_probs_1 = [5.50,5.50,9.50,19.00,7.00,6.00,11.00,23.00,15.00,15.00,21.00,41.00,41.00,36.00,56.00,86.00]
+real_probs_2 = [9.00,6.50,8.50,10.00,11.00,6.50,9.00,10.00,21.00,15.00,15.00,19.00,41.00,34.00,36.00,36.00]
+real_probs_3 = [9.50,8.50,13.00,21.00,8.50,6.00,10.00,17.00,13.00,10.00,13.00,23.00,23.00,17.00,21.00,34.00]
+real_probs_4 = [8.50,10.00,17.00,34.00,7.00,6.00,13.00,23.00,10.00,9.50,15.00,29.00,15.00,13.00,23.00,36.00]
+real_probs_5 = [9.00,8.00,11.00,17.00,9.50,6.00,9.50,15.00,15.00,12.00,13.00,21.00,34.00,23.00,26.00,34.00]
+real_probs_6 = [7.00,9.50,21.00,56.00,5.50,6.50,15.00,41.00,8.00,9.00,19.00,46.00,12.00,13.00,26.00,56.00]
 
 raw_real_probs = [real_probs_1, real_probs_2, real_probs_3, real_probs_4, real_probs_5, real_probs_6]
 REAL_PROBS_MATRIX = np.zeros((6, 16), dtype=np.float64)
