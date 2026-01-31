@@ -85,7 +85,7 @@ def calcular_benetakue2(danakb, konbin, sobrakx):
 bene=[]
 lae=[]
 
-with open("quiniela/estimacion.txt", mode="r", encoding="utf-8-sig") as datos:
+with open("quiniela/quiniela/estimacion.txt", mode="r", encoding="utf-8-sig") as datos:
     valores=[]
     for linea in datos:
         linea=linea.replace(",",".")
@@ -95,13 +95,13 @@ for i in range(0,14):
 for i in range(14,15):
     lae.append([valores[i][0]*valores[i+1][0],valores[i][0]*valores[i+1][1],valores[i][0]*valores[i+1][2],valores[i][0]*valores[i+1][3],valores[i][1]*valores[i+1][0],valores[i][1]*valores[i+1][1],valores[i][1]*valores[i+1][2],valores[i][1]*valores[i+1][3],valores[i][2]*valores[i+1][0],valores[i][2]*valores[i+1][1],valores[i][2]*valores[i+1][2],valores[i][2]*valores[i+1][3],valores[i][3]*valores[i+1][0],valores[i][3]*valores[i+1][1],valores[i][3]*valores[i+1][2],valores[i][3]*valores[i+1][3]])
 
-botie = 0
-estimazixue = 851064
+botie = 6417884.49
+estimazixue = 4500000.0
 temporadie = 2026
-jornadie = 25
-plenuehasi= 8
-plenuebukau= 9
-datos=[34,23,26,34,17,10,13,13,17,10,11,12,13,7.5,8,8]
+jornadie = 39
+plenuehasi= 3
+plenuebukau= 4
+datos=[8.00,9.50,17.00,34.00,7.00,6.00,12.00,23.00,10.00,9.50,15.00,29.00,17.00,15.00,23.00,41.00]
 url = "https://api.eduardolosilla.es/servicios/v1/probabilidad_real?jornada="+str(jornadie)+"&temporada="+str(temporadie)
 response = requests.get(url)
 root = ET.fromstring(response.content)
@@ -161,7 +161,7 @@ for yi in range(0,1000):
     else:
         irabazixek10[yi]=(estimazixue*0.09)/(yi+1)
   
-konbodanak=np.load("combinations/motza.npy")
+konbodanak=np.load("quiniela/combinations/motza.npy")
 print(len(konbodanak))     
 
 cont=0
