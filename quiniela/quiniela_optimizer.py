@@ -8,22 +8,32 @@ import src.core_math_quiniela as engine
 
 # Opciones para TARGET_PLENO:
 #   "ALL"   -> Genera las 16 variantes de Pleno para CADA columna de 14 partidos. (Recomendado si hay CPU)
-#   "M1"   -> Fuerza que todas las columnas analizadas tengan este Pleno.
+#   "M1"    -> Fuerza que todas las columnas analizadas tengan este Pleno.
 #   None    -> Usa el Pleno que venga en el archivo motza.npy original.
-TARGET_PLENO = "0M"  
+TARGET_PLENO = "01"  
 
 # Ajustes de Optimización
 N_SIMULATIONS = 100000
 PORTFOLIO_SIZE = 10
 MIN_EV_THRESHOLD = 1.4
-OPTIMIZATION_MODE = 1 # 2=Sortino
+
+# MODO DE SELECCIÓN:
+#   0 = DEBUG EV (Selecciona por puro EV Analítico, sin diversificar riesgo).
+#   1 = Probabilidad de Beneficio.
+#   2 = Sortino Ratio (Recomendado: Equilibrio Rentabilidad/Riesgo).
+OPTIMIZATION_MODE = 1
 
 # --- CARGA DE DATOS ---
 try:
     import data.current_data as current_data
     DATA_READY = True
 except ImportError:
-    DATA_READY = False
+    try:
+        # Intentamos importar desde la raíz por si acaso
+        import current_data
+        DATA_READY = True
+    except ImportError:
+        DATA_READY = False
 
 JACKPOT = getattr(current_data, 'JACKPOT', 0.0) if DATA_READY else 0.0
 ESTIMATION = getattr(current_data, 'ESTIMATION', 4000000.0) if DATA_READY else 4000000.0
@@ -87,7 +97,13 @@ def load_and_expand_combinations(path, strategy):
     n_base = len(base_1x2)
     print(f"   Columnas base (14 partidos): {n_base}")
 
-    if strategy == "ALL":
+    # Limpieza de la estrategia (quitar guiones, espacios, mayúsculas)
+    if isinstance(strategy, str):
+        strategy_clean = strategy.replace("-", "").replace(",", "").replace(" ", "").upper()
+    else:
+        strategy_clean = strategy
+
+    if strategy_clean == "ALL":
         print(f"   🚀 ESTRATEGIA 'ALL': Generando 16 variantes por columna...")
         # Repetimos cada fila 16 veces
         expanded_1x2 = np.repeat(base_1x2, 16, axis=0)
@@ -96,8 +112,8 @@ def load_and_expand_combinations(path, strategy):
         
         return expanded_1x2, expanded_pleno
         
-    elif isinstance(strategy, str) and strategy in MAPA_PLENO_REV:
-        idx = MAPA_PLENO_REV[strategy]
+    elif isinstance(strategy_clean, str) and strategy_clean in MAPA_PLENO_REV:
+        idx = MAPA_PLENO_REV[strategy_clean]
         print(f"   🎯 ESTRATEGIA FIJA: Aplicando Pleno '{strategy}' (idx {idx}) a todo...")
         return base_1x2, np.full(n_base, idx, dtype=np.int8)
         
@@ -107,23 +123,21 @@ def load_and_expand_combinations(path, strategy):
 
 def main():
     t0 = time.time()
-    print("\n=== QUINIELA OPTIMIZER (DYNAMIC EXPANSION) ===")
+    print("\n=== QUINIELA OPTIMIZER ===")
     
-    # 1. CARGA PROBS
+    # 1. CARGA DATOS
     lae_1x2, lae_pleno = parse_probs_local("quiniela/estimacion.txt")
     if DATA_READY:
         real_1x2 = current_data.REAL_1X2
         real_pleno = current_data.REAL_PLENO
     else:
-        print("❌ Faltan datos reales. Ejecuta generar_datos.py")
+        print("❌ Error: Ejecuta generar_datos.py primero.")
         return
 
-    # 2. CARGA Y EXPANSIÓN DE COMBINACIONES
     c_1x2, c_pleno = load_and_expand_combinations("combinations/motza.npy", TARGET_PLENO)
-    print(f"   Total candidatos a evaluar: {len(c_1x2)}")
     
-    # 3. FILTRO EV (Aquí es donde se descartan los Plenos improbables si su premio no compensa)
-    print(f"Calculando EV...")
+    # 2. FILTRO EV
+    print(f"Calculando EV para {len(c_1x2)} columnas...")
     evs = engine.get_top_candidates_quiniela(
         c_1x2, c_pleno, real_1x2, real_pleno, lae_1x2, lae_pleno,
         ESTIMATION, JACKPOT, DISTRIBUTION
@@ -131,71 +145,136 @@ def main():
     
     mask = evs > MIN_EV_THRESHOLD
     candidates = np.where(mask)[0]
-    
-    # Ordenar
+    # Ordenar por EV descendente
     candidates = candidates[np.argsort(evs[candidates])[::-1]]
     
-    # Limitar pool para la simulación pesada
-    # Si expandimos a 16x, el pool inicial es enorme, así que nos quedamos con los mejores 15k
-    if len(candidates) > 15000: 
-        print(f"   Reduciendo candidatos de {len(candidates)} a los Top 15000 para Monte Carlo.")
-        candidates = candidates[:15000]
-    else:
-        print(f"   Pasando {len(candidates)} candidatos a Monte Carlo.")
-    
-    if len(candidates) == 0: 
-        print("❌ Ningún candidato supera el umbral EV.")
-        return
+    print(f"Candidatos viables (> {MIN_EV_THRESHOLD} EV): {len(candidates)}")
+    if len(candidates) == 0: return
 
-    # 4. SIMULACIÓN MONTE CARLO
+    # El usuario controla la carga mediante N_SIMULATIONS
+    print(f"   Pasando TODOS los {len(candidates)} candidatos a la optimización.")
+
+    # 3. SIMULACIÓN MONTE CARLO (Necesaria para métricas finales o modos 1 y 2)
+    # Incluso en modo 0 simulamos para dar datos de ROI realistas al final
     print(f"Simulando {N_SIMULATIONS} escenarios...")
     scenarios = engine.generate_scenarios_quiniela(real_1x2, real_pleno, N_SIMULATIONS)
     prizes = engine.precompute_scenario_prizes_quiniela(
         scenarios, lae_1x2, lae_pleno, ESTIMATION, JACKPOT, DISTRIBUTION
     )
-    
-    # 5. OPTIMIZACIÓN
-    print(f"Optimizando cartera ({PORTFOLIO_SIZE} apuestas)...")
-    selected = []
+
+    # 4. SELECCIÓN DE CARTERA
+    selected_indices = [] # Indices locales dentro de 'candidates'
     earnings = np.zeros(N_SIMULATIONS, dtype=np.float64)
     pool_1x2 = c_1x2[candidates]
     pool_pleno = c_pleno[candidates]
     
-    for step in range(PORTFOLIO_SIZE):
-        best_idx = -1
-        best_val = -float('inf')
-        cost = step * BET_PRICE
-        
-        for i in range(len(candidates)):
-            if i in selected: continue
-            m = engine.calculate_candidate_metric_quiniela(
-                pool_1x2[i], pool_pleno[i], scenarios, earnings, prizes,
-                OPTIMIZATION_MODE, cost
-            )
-            if m > best_val:
-                best_val = m
-                best_idx = i
-        
-        if best_idx != -1:
-            selected.append(best_idx)
-            engine.update_earnings_quiniela(
-                earnings, pool_1x2[best_idx], pool_pleno[best_idx], scenarios, prizes
-            )
-            val_pleno = MAPA_PLENO[pool_pleno[best_idx]]
-            print(f"[{step+1:02d}] P15:{val_pleno} | Metric:{best_val:.4f}")
-        else: break
-        
-    # 6. GUARDAR
-    os.makedirs("results", exist_ok=True)
-    sym = ["1","X","2"]
-    with open("results/apuesta_quiniela_optimizada.txt", "w") as f:
-        for i in selected:
-            row = "".join([sym[x] for x in pool_1x2[i]]) + " + " + MAPA_PLENO[pool_pleno[i]]
-            print(row)
-            f.write(row+"\n")
+    # Símbolos para imprimir la quiniela
+    sym = ["1", "X", "2"]
+
+    if OPTIMIZATION_MODE == 0:
+        print(f"\n⚡ MODO DEBUG (EV PURO): Seleccionando las {PORTFOLIO_SIZE} mejores columnas...")
+        count = min(PORTFOLIO_SIZE, len(candidates))
+        selected_indices = list(range(count))
+        # Actualizamos earnings para estadísticas finales
+        for i in selected_indices:
+            engine.update_earnings_quiniela(earnings, pool_1x2[i], pool_pleno[i], scenarios, prizes)
             
-    print(f"\nROI: {((np.mean(earnings)-(PORTFOLIO_SIZE*BET_PRICE))/(PORTFOLIO_SIZE*BET_PRICE))*100:.2f}%")
-    print(f"Tiempo: {time.time()-t0:.2f}s")
+            # IMPRIMIR AL ENCONTRAR (MODO 0)
+            real_idx = candidates[i]
+            ev_val = evs[real_idx]
+            p14 = pool_1x2[i]
+            pp = pool_pleno[i]
+            txt_14 = "".join([sym[x] for x in p14])
+            txt_pleno = MAPA_PLENO[pp]
+            
+            print(f"[{i+1:02d}] {txt_14} + {txt_pleno} | EV:{ev_val:.4f}")
+            
+    else:
+        print(f"\n⚙️  MODO OPTIMIZADOR ({OPTIMIZATION_MODE}): Buscando cartera de bajo riesgo...")
+        print("   (Pulsa Ctrl+C para detener y guardar lo calculado)")
+        
+        try:
+            for step in range(PORTFOLIO_SIZE):
+                best_idx = -1
+                best_val = -float('inf')
+                cost = step * BET_PRICE
+                
+                # Bucle de búsqueda del mejor candidato
+                for i in range(len(candidates)):
+                    if i in selected_indices: continue
+                    
+                    m = engine.calculate_candidate_metric_quiniela(
+                        pool_1x2[i], pool_pleno[i], scenarios, earnings, prizes,
+                        OPTIMIZATION_MODE, cost
+                    )
+                    if m > best_val:
+                        best_val = m
+                        best_idx = i
+                
+                if best_idx != -1:
+                    selected_indices.append(best_idx)
+                    engine.update_earnings_quiniela(
+                        earnings, pool_1x2[best_idx], pool_pleno[best_idx], scenarios, prizes
+                    )
+                    
+                    # IMPRIMIR AL ENCONTRAR (MODO 1 y 2)
+                    real_idx = candidates[best_idx]
+                    ev_val = evs[real_idx]
+                    p14 = pool_1x2[best_idx]
+                    pp = pool_pleno[best_idx]
+                    txt_14 = "".join([sym[x] for x in p14])
+                    txt_pleno = MAPA_PLENO[pp]
+                    
+                    print(f"[{step+1:02d}] {txt_14} + {txt_pleno} | Metric:{best_val:.4f} | EV:{ev_val:.4f}")
+
+                else: 
+                    print("   No se encontraron más columnas que mejoren la cartera.")
+                    break
+                    
+        except KeyboardInterrupt:
+            print("\n\n🛑 DETENIDO POR EL USUARIO (Ctrl+C). Guardando resultados parciales...")
+
+    # 5. RESULTADOS
+    print("\n=== CARTERA SELECCIONADA ===")
+    os.makedirs("results", exist_ok=True)
+    
+    total_theoretical_ev = 0.0
+    
+    with open("results/apuesta_quiniela_optimizada.txt", "w") as f:
+        for i, local_idx in enumerate(selected_indices):
+            # Recuperar índice original para sacar el EV
+            real_idx = candidates[local_idx]
+            ev_val = evs[real_idx]
+            total_theoretical_ev += ev_val
+            
+            p14 = pool_1x2[local_idx]
+            pp  = pool_pleno[local_idx]
+            
+            txt_14 = "".join([sym[x] for x in p14])
+            txt_pleno = MAPA_PLENO[pp]
+            
+            # Formato de salida con EV
+            linea = f"{txt_14} + {txt_pleno}"
+            info_extra = f" | EV: {ev_val:.4f} €"
+            
+            print(f"{i+1:02d}: {linea}{info_extra}")
+            f.write(linea + "\n") # En el txt limpio solo guardamos la apuesta
+            
+    # Estadísticas Globales
+    invested = len(selected_indices) * BET_PRICE
+    if invested > 0:
+        expected_return = np.mean(earnings) # Esto es el EV Simulado Total
+        roi = ((expected_return - invested) / invested) * 100
+        
+        print("-" * 30)
+        print(f"Inversión Total:      {invested:.2f} €")
+        print(f"EV Teórico Total:     {total_theoretical_ev:.2f} €")
+        print(f"EV Simulado Total:    {expected_return:.2f} €")
+        print(f"ROI Estimado:         {roi:+.2f}%")
+    else:
+        print("\n⚠️ No se seleccionaron apuestas.")
+        
+    print(f"Tiempo Total:         {time.time()-t0:.2f}s")
 
 if __name__ == "__main__":
     main()

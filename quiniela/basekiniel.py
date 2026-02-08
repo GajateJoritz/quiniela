@@ -8,15 +8,15 @@ class Base():
         self.konbos=[]
     def konbuk(self):
         a=0
-        while a!=3:
+        while a!=1:
             b=0
-            while b!=3:
+            while b!=1:
                 c=0
-                while c!=3:
+                while c!=1:
                     d=0
-                    while d!=3:
+                    while d!=1:
                         e=0
-                        while e!=3:
+                        while e!=1:
                             f=0
                             while f!=3:
                                 g=0
@@ -57,7 +57,7 @@ class Base():
 prueba = Base()
 prueba.konbuk()
 lista=np.array(prueba.konbos)
-np.save("motza",lista)
+np.save("prue",lista)
 #listaBuelta=np.load("motza.npy")
 
 end_time = time.monotonic()

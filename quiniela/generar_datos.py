@@ -5,8 +5,8 @@ import datetime
 
 # --- CONFIGURACIÓN ---
 TEMPORADA = "2026"
-JORNADA = "39"
-JACKPOT_DEFECTO = 6417884.49
+JORNADA = "40"
+JACKPOT_DEFECTO = 2360075.17
 ESTIMACION_DEFECTO = 4500000.0
 
 
@@ -49,7 +49,7 @@ def generar_fichero_datos():
     # 2. PROCESAR PLENO AL 15 (AUTOMÁTICO SIEMPRE)
     # Usamos las cuotas base para definir la probabilidad real del suceso
     print("ℹ️  Calculando probabilidades del Pleno según cuotas de mercado.")
-    raw_odds = [8.00,9.50,17.00,34.00,7.00,6.00,12.00,23.00,10.00,9.50,15.00,29.00,17.00,15.00,23.00,41.00]
+    raw_odds = [17.00,9.00,8.50,7.00,17.00,8.50,8.50,7.00,29.00,15.00,15.00,12.00,61.00,36.00,34.00,21.00]
     probs_pleno = odds_to_probs(raw_odds)
 
     # 3. ESCRIBIR current_data.py
