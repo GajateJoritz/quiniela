@@ -1,0 +1,19 @@
+<quinielista>
+    <porcentajes jornada="40" temporada="2026" activo="si">
+        <partido num="1" local="RAYO" visitante="R.OVIEDO" porc_1="62" porc_X="25" porc_2="13" porcDec_1="62" porcDec_X="25" porcDec_2="13"/>
+        <partido num="2" local="BARCELONA" visitante="MALLORCA" porc_1="83" porc_X="11" porc_2="6" porcDec_1="82.79" porcDec_X="11.18" porcDec_2="6.03"/>
+        <partido num="3" local="SEVILLA" visitante="GIRONA" porc_1="45" porc_X="28" porc_2="27" porcDec_1="44.83" porcDec_X="28.19" porcDec_2="26.98"/>
+        <partido num="4" local="R.SOCIEDAD" visitante="ELCHE" porc_1="57" porc_X="24" porc_2="19" porcDec_1="57.35" porcDec_X="24.18" porcDec_2="18.47"/>
+        <partido num="5" local="ALAVÉS" visitante="GETAFE" porc_1="41" porc_X="34" porc_2="25" porcDec_1="40.48" porcDec_X="34.17" porcDec_2="25.35"/>
+        <partido num="6" local="ATH.CLUB" visitante="LEVANTE" porc_1="59" porc_X="24" porc_2="17" porcDec_1="58.76" porcDec_X="24.23" porcDec_2="17.01"/>
+        <partido num="7" local="AT.MADRID" visitante="BETIS" porc_1="65" porc_X="21" porc_2="14" porcDec_1="64.79" porcDec_X="20.69" porcDec_2="14.52"/>
+        <partido num="8" local="VILLARREAL" visitante="ESPANYOL" porc_1="56" porc_X="23" porc_2="21" porcDec_1="56.12" porcDec_X="23.37" porcDec_2="20.51"/>
+        <partido num="9" local="CÁDIZ" visitante="ALMERÍA" porc_1="36" porc_X="28" porc_2="36" porcDec_1="35.5" porcDec_X="28.31" porcDec_2="36.19"/>
+        <partido num="10" local="VALLADOLID" visitante="CASTELLÓN" porc_1="30" porc_X="28" porc_2="42" porcDec_1="30.21" porcDec_X="28.12" porcDec_2="41.67"/>
+        <partido num="11" local="CEUTA" visitante="CÓRDOBA" porc_1="30" porc_X="35" porc_2="35" porcDec_1="30" porcDec_X="35" porcDec_2="35"/>
+        <partido num="12" local="DEPORTIVO" visitante="ALBACETE" porc_1="53" porc_X="26" porc_2="21" porcDec_1="53.32" porcDec_X="25.57" porcDec_2="21.11"/>
+        <partido num="13" local="SPORTING" visitante="HUESCA" porc_1="51" porc_X="29" porc_2="20" porcDec_1="50.97" porcDec_X="28.79" porcDec_2="20.24"/>
+        <partido num="14" local="MÁLAGA" visitante="C. LEONESA" porc_1="54" porc_X="26" porc_2="20" porcDec_1="54.16" porcDec_X="26.31" porcDec_2="19.53"/>
+        <partido num="15" local="VALENCIA" visitante="R.MADRID" porc_15L_0="40" porc_15L_1="37" porc_15L_2="17" porc_15L_M="6" porc_15V_0="15" porc_15V_1="28" porc_15V_2="27" porc_15V_M="30" porcDec_15L_0="40.02" porcDec_15L_1="36.65" porcDec_15L_2="16.78" porcDec_15L_M="6.55" porcDec_15V_0="14.61" porcDec_15V_1="28.1" porcDec_15V_2="27.03" porcDec_15V_M="30.26"/>
+    </porcentajes>
+</quinielista>

@@ -4,7 +4,7 @@ import scipy.special
 from itertools import combinations
 from datetime import timedelta
 import xml.etree.ElementTree as ET
-from eligeocho.konbinazixueErakutsi import konbinazixuerakutsi
+from konbinazixueErakutsi import konbinazixuerakutsi
 start_time = time.monotonic()
 
 def faltadinak(bat,bi,hiru):
@@ -42,7 +42,7 @@ for elem in root:
             lae.append(laetxiki)
             laetxiki=[]
 """
-with open("estimacion.txt", mode="r", encoding="utf-8-sig") as datos:
+with open("quiniela/estimacion.txt", mode="r", encoding="utf-8-sig") as datos:
     valores=[]
     for linea in datos:
         linea=linea.replace(",",".")
@@ -51,7 +51,7 @@ for i in range(0,14):
     lae.append([valores[i][0],valores[i][1],valores[i][2]])
 
 
-tree=ET.parse("bene.xml")
+tree=ET.parse("eligeocho/bene.xml")
 root=tree.getroot()
 for elem in root:
     for part in elem:
@@ -62,12 +62,12 @@ for elem in root:
             bene.append(benetxiki)
             benetxiki=[]
 
-estimazixue = 250000
+estimazixue = 1000
 #19.702.683 konbinazixo ta 3.003 irabazle, 6.561tik behin irabaztea
 
 kantidadie=1
 bukaera=[]
-for i in range(90):
+for i in range(5):
     bukaera.append([0,[]])
     
 portzentaj=0.0
@@ -97,7 +97,7 @@ for yi in range(0,1000):
     else:
         irabazixek[yi]=(estimazixue*0.5*0.55)/(yi+1)
 
-konbodanak=np.load("kopis.npy", allow_pickle=True)  
+konbodanak=np.load("combinations/kopis.npy", allow_pickle=True)  
 print(len(konbodanak))                     
 for k in range(len(konbodanak)):
     x=konbodanak[k][0][8]
@@ -175,7 +175,7 @@ for k in range(len(konbodanak)):
                                         danea.append(lelenak2[aa]+(bigarrenak6[bb][0][a1],)+(bigarrenak6[bb][1][a2],)+(bigarrenak6[bb][2][a3],)+(bigarrenak6[bb][3][a4],)+(bigarrenak6[bb][4][a5],)+(bigarrenak6[bb][5][a6],))
                                         laek+=(danea[aa][0])*(danea[aa][1])*(danea[aa][2])*(danea[aa][3])*(danea[aa][4])*(danea[aa][5])*(danea[aa][6])*(danea[aa][7])*(bigar6[bb][0][a1])*(bigar6[bb][1][a2])*(bigar6[bb][2][a3])*(bigar6[bb][3][a4])*(bigar6[bb][4][a5])*(bigar6[bb][5][a6])/3003
                                 laekue+= laek
-        for y in range(0,50):
+        for y in range(0,500):
             binomio=scipy.special.comb(estimazixue, y, exact=True)
             laetotala+= ((1-laekue)**(estimazixue-y))*irabazixek[y]*(laekue**y)*binomio 
         maxi =(benetakue*laetotala)/0.5
