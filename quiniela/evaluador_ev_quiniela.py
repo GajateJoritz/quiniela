@@ -17,13 +17,21 @@ except ImportError:
     print(f"   Asegúrate de guardar este script DENTRO de la carpeta 'quiniela/'.")
     sys.exit()
 
+try:
+    import data.current_data as current_data
+    print("✅ Datos reales (data.current_data) cargados correctamente.")
+except ImportError:
+    print("\n❌ ERROR CRÍTICO: No se encuentra 'data.current_data'.")
+    print("   Asegúrate de haber ejecutado 'generar_datos.py' primero para generar los datos.")
+    sys.exit()
+
 # -------------------------------------------------------------------------
 # 2. CONFIGURACIÓN DE LA JORNADA
 # -------------------------------------------------------------------------
 
-# Datos Oficiales (Post-Cierre)
-JACKPOT = 0.0
-ESTIMATION = 1100000.0  # Recaudación de la jornada
+# Datos Oficiales (Cargados desde current_data)
+JACKPOT = getattr(current_data, 'JACKPOT', 0.0)
+ESTIMATION = getattr(current_data, 'ESTIMATION', 1100000.0)
 PRECIO_APUESTA = 0.75    # Precio por columna (0.75€ estándar)
 
 DIST_PREMIOS = np.array([0.075, 0.16, 0.075, 0.075, 0.075, 0.09])
@@ -32,12 +40,8 @@ DIST_PREMIOS = np.array([0.075, 0.16, 0.075, 0.075, 0.075, 0.09])
 # 3. TUS APUESTAS
 # -------------------------------------------------------------------------
 TEXTO_APUESTAS = """
-01: 22X22121122122 + 01 | EV: 1.1268 €
-02: 22222221X12121 + 01 | EV: 1.1437 €
-03: 12X22121111121 + 01 | EV: 1.1710 €
-04: 11X22221121111 + 01 | EV: 1.1552 €
-05: 12X22X21X1X112 + 01 | EV: 1.1567 €
-06: 21122121X1X111 + 01 | EV: 1.1283 €
+07: 12X222X1X22121 + 01 | EV: 1.2083 €
+08: 22X22122112111 + 01 | EV: 1.1298 €
 """
 
 # -------------------------------------------------------------------------
@@ -71,39 +75,7 @@ Partido 15: 10 5 2 1 15 20 5 2 8 5 3 1 5 2 1 15
 """
 
 # -------------------------------------------------------------------------
-# 5. DATOS REALES (XML para 1X2 + Lista para P15)
-# -------------------------------------------------------------------------
-# Nota: CUOTAS_REALES_1X2 es una lista con un string XML dentro.
-CUOTAS_REALES_1X2 = ["""
-<quinielista>
-<porcentajes jornada="41" temporada="2026" activo="si">
-<partido num="1" local="ATH.CLUB" visitante="R.SOCIEDAD" porc_1="42" porc_X="29" porc_2="29" porcDec_1="42.07" porcDec_X="29.45" porcDec_2="28.48"/>
-<partido num="2" local="AT.MADRID" visitante="BARCELONA" porc_1="31" porc_X="24" porc_2="45" porcDec_1="30.98" porcDec_X="24.4" porcDec_2="44.62"/>
-<partido num="3" local="CHELSEA" visitante="LEEDS" porc_1="63" porc_X="21" porc_2="16" porcDec_1="63.12" porcDec_X="21.18" porcDec_2="15.7"/>
-<partido num="4" local="EVERTON" visitante="BOURNEMOUTH" porc_1="39" porc_X="28" porc_2="33" porcDec_1="38.97" porcDec_X="28.53" porcDec_2="32.5"/>
-<partido num="5" local="TOTTENHAM" visitante="NEWCASTLE" porc_1="30" porc_X="27" porc_2="43" porcDec_1="29.99" porcDec_X="26.58" porcDec_2="43.43"/>
-<partido num="6" local="WEST HAM" visitante="MAN.UNITED" porc_1="22" porc_X="23" porc_2="55" porcDec_1="22.14" porcDec_X="22.94" porcDec_2="54.92"/>
-<partido num="7" local="ASTON VILLA" visitante="BRIGHTON" porc_1="48" porc_X="27" porc_2="25" porcDec_1="48.17" porcDec_X="26.48" porcDec_2="25.35"/>
-<partido num="8" local="CRYSTAL PALACE" visitante="BURNLEY" porc_1="62" porc_X="23" porc_2="15" porcDec_1="62.49" porcDec_X="22.66" porcDec_2="14.85"/>
-<partido num="9" local="MAN.CITY" visitante="FULHAM" porc_1="70" porc_X="18" porc_2="12" porcDec_1="70.1" porcDec_X="17.75" porcDec_2="12.15"/>
-<partido num="10" local="NOTTINGHAM" visitante="WOLVERHAMPTON" porc_1="56" porc_X="25" porc_2="19" porcDec_1="56.11" porcDec_X="25.18" porcDec_2="18.71"/>
-<partido num="11" local="BRENTFORD" visitante="ARSENAL" porc_1="20" porc_X="24" porc_2="56" porcDec_1="19.64" porcDec_X="24.32" porcDec_2="56.04"/>
-<partido num="12" local="CELTIC" visitante="LIVINGSTON" porc_1="78" porc_X="16" porc_2="6" porcDec_1="78.11" porcDec_X="15.5" porcDec_2="6.39"/>
-<partido num="13" local="DUNDEE UNITED" visitante="ABERDEEN" porc_1="39" porc_X="28" porc_2="33" porcDec_1="39.09" porcDec_X="28" porcDec_2="32.91"/>
-<partido num="14" local="MOTHERWELL" visitante="RANGERS" porc_1="29" porc_X="26" porc_2="45" porcDec_1="28.54" porcDec_X="26.23" porcDec_2="45.23"/>
-<partido num="15" local="SUNDERLAND" visitante="LIVERPOOL" porc_15L_0="38" porc_15L_1="37" porc_15L_2="18" porc_15L_M="7" porc_15V_0="17" porc_15V_1="30" porc_15V_2="27" porc_15V_M="26" porcDec_15L_0="37.81" porcDec_15L_1="36.77" porcDec_15L_2="17.88" porcDec_15L_M="7.54" porcDec_15V_0="16.83" porcDec_15V_1="29.99" porcDec_15V_2="26.72" porcDec_15V_M="26.46"/>
-</porcentajes>
-</quinielista>
-"""]
-
-
-
-
-# Odds reales para el P15 (16 valores)
-CUOTAS_REALES_PLENO = [11.00,8.00,9.00,9.00,15.00,7.50,9.00,8.50,29.00,17.00,17.00,15.00,67.00,34.00,36.00,29.00]
-
-# -------------------------------------------------------------------------
-# 6. FUNCIONES DE PARSEO
+# 5. FUNCIONES DE PARSEO
 # -------------------------------------------------------------------------
 
 MAPA_1X2 = {'1': 0, 'X': 1, '2': 2}
@@ -206,24 +178,11 @@ def procesar_lae_pleno(texto):
     p = np.array(numeros[-16:])
     return p / p.sum()
 
-def procesar_reales(lista_xml_1x2, lista_odds_pleno):
-    # 1. Parsear el XML de reales (está dentro de una lista)
-    xml_content = lista_xml_1x2[0]
-    # Usamos las etiquetas 'porcDec_...' que son las probabilidades reales en %
-    probs_1x2 = parsear_xml_1x2(xml_content, tags=('porcDec_1', 'porcDec_X', 'porcDec_2'))
-    
-    # 2. Procesar P15 desde la lista de Cuotas (Odds)
-    v_pleno = np.array(lista_odds_pleno)
-    p_pleno = 1.0 / v_pleno # Convertir cuota a probabilidad
-    p_pleno = p_pleno / p_pleno.sum() # Normalizar
-    
-    return probs_1x2, p_pleno
-
 # -------------------------------------------------------------------------
-# 7. EJECUCIÓN
+# 6. EJECUCIÓN
 # -------------------------------------------------------------------------
 def main():
-    print("\n--- ⚽ CALCULADORA EV QUINIELA (XML) ---")
+    print("\n--- ⚽ CALCULADORA EV QUINIELA (CON DATOS ACTUALIZADOS) ---")
     
     try:
         # 1. Parsear Apuestas
@@ -235,11 +194,11 @@ def main():
         lae_1x2 = parsear_xml_1x2(TEXTO_LAE_1X2) 
         lae_p15 = procesar_lae_pleno(TEXTO_LAE_PLENO)
         
-        # 3. Parsear Reales (XML + Lista Odds P15)
-        # Usamos tags de decimales (porcDec_1...)
-        real_1x2, real_p15 = procesar_reales(CUOTAS_REALES_1X2, CUOTAS_REALES_PLENO)
+        # 3. Datos Reales (Desde current_data)
+        real_1x2 = current_data.REAL_1X2
+        real_p15 = current_data.REAL_PLENO
         
-        print("✅ Datos de probabilidades procesados correctamente.")
+        print(f"✅ Datos reales cargados de jornada {getattr(current_data, 'JORNADA', '?')}.")
         print("-" * 50)
 
         # 4. Calcular EV

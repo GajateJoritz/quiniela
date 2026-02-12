@@ -29,8 +29,6 @@ def generate_scenarios_gpu(probs_matrix_cpu, n_sims):
     cp.clip(scenarios, 0, 15, out=scenarios)
     
     # OPTIMIZATION: Return Transposed version (6, N_Sims) for faster memory access later
-    # OPTIMIZACIÓN: Devolver versión transpuesta (6, N_Sims) para acceso a memoria más rápido después
-    # This aligns memory for the 6-loop iteration in greedy
     return cp.ascontiguousarray(scenarios.T)
 
 # --- 2. PRIZE CALCULATION (GPU) ---
@@ -125,10 +123,10 @@ def precompute_scenario_prizes_gpu(scenarios_T_gpu, lae_probs_cpu, estimation, j
 
 # --- 3. GREEDY OPTIMIZER (GPU - MEMORY OPTIMIZED) ---
 
-def greedy_portfolio_selection_gpu(candidate_indices, all_combinations_cpu, scenarios_T_gpu, dynamic_prizes_gpu, target_size, mode):
+def greedy_portfolio_selection_gpu(candidate_indices, all_combinations_cpu, scenarios_T_gpu, dynamic_prizes_gpu, target_size, mode, candidate_evs=None):
     """
     GPU Accelerated Greedy Selection.
-    Optimized for MEMORY EFFICIENCY (Avoids 3D Broadcasting).
+    Optimized for MEMORY EFFICIENCY.
     """
     # scenarios_T_gpu is (6, N_Sims)
     n_sims = scenarios_T_gpu.shape[1]
@@ -145,17 +143,14 @@ def greedy_portfolio_selection_gpu(candidate_indices, all_combinations_cpu, scen
     selected_indices_local = []
     selected_mask = cp.zeros(n_cands, dtype=cp.bool_) 
     
+    # Result labels for display
+    RESULT_LABELS = ["0-0","0-1","0-2","0-M","1-0","1-1","1-2","1-M","2-0","2-1","2-2","2-M","M-0","M-1","M-2","M-M"]
+
     # --- MEMORY SAFE BATCHING ---
-    # We now calculate hits match-by-match, so we don't need the massive 3D array.
-    # We can process more candidates at once safely.
-    # Target 500MB VRAM per batch is extremely safe.
-    # 500MB / (N_Sims * 9 bytes) approx.
-    
-    BYTES_PER_SIM = 12 # Hits(1) + Prizes(4) + Earnings(4) + Misc overhead
-    SAFE_MEMORY_LIMIT = 1.0 * 1024**3  # 1 GB (Equilibrio perfecto)
+    BYTES_PER_SIM = 12 
+    SAFE_MEMORY_LIMIT = 1.0 * 1024**3  # 1 GB
     
     calculated_batch = int(SAFE_MEMORY_LIMIT / (n_sims * BYTES_PER_SIM))
-    # Cap at 5000 to maintain responsiveness
     BATCH_SIZE = max(50, min(calculated_batch, 5000))
     
     print(f"   ⚖️  Optimized Batch Size: {BATCH_SIZE} (Low Memory Footprint)")
@@ -178,11 +173,11 @@ def greedy_portfolio_selection_gpu(candidate_indices, all_combinations_cpu, scen
             cost_so_far = float(step)
             new_cost = cost_so_far + 1.0
             if mode == 1:
-                threshold = new_cost # Must cover current size
+                threshold = new_cost
             elif mode == 3:
                 threshold = new_cost * 0.5
             elif mode == 4:
-                threshold = float(target_size) # Must cover FINAL size
+                threshold = float(target_size)
             else:
                 threshold = new_cost
             
@@ -190,7 +185,7 @@ def greedy_portfolio_selection_gpu(candidate_indices, all_combinations_cpu, scen
             for i in range(0, n_cands, BATCH_SIZE):
                 end = min(i + BATCH_SIZE, n_cands)
                 
-                # Skip optimization
+                # Skip optimization if all in batch are already selected
                 if cp.all(selected_mask[i:end]):
                     continue
                 
@@ -198,32 +193,21 @@ def greedy_portfolio_selection_gpu(candidate_indices, all_combinations_cpu, scen
                 batch_cands = candidates_pool_gpu[i:end]
                 current_bs = batch_cands.shape[0]
                 
-                # 1. CALCULATE HITS (MEMORY OPTIMIZED)
-                # Instead of creating (Batch, Sims, 6), we loop over matches and add up.
-                # Creates only (Batch, Sims) -> 6x less memory usage!
-                
+                # 1. CALCULATE HITS
                 hits_batch = cp.zeros((current_bs, n_sims), dtype=cp.int8)
-                
                 for m in range(6):
-                    # Compare Match 'm' for all candidates in batch vs all sims
-                    # batch_cands[:, m] -> (Batch,) -> (Batch, 1)
-                    # scenarios_T_gpu[m] -> (Sims,) -> (1, Sims)
-                    # Result (Batch, Sims) added to accumulator
                     hits_batch += (batch_cands[:, m:m+1] == scenarios_T_gpu[m:m+1])
                 
                 # 2. VECTORIZED PRIZE LOOKUP
-                # Lookup prizes: (Batch, Sims)
                 prizes_batch = dynamic_prizes_gpu[sim_range[None, :], hits_batch]
                 
                 # 3. VECTORIZED METRICS
-                # Broadcast addition: (1, Sims) + (Batch, Sims)
                 total_earnings_batch = current_earnings[None, :] + prizes_batch
                 
                 # Metric Function
                 metrics_batch = cp.mean(total_earnings_batch > threshold, axis=1)
 
                 # 4. MASKING & SELECTION
-                # Apply mask to the batch part
                 local_mask = selected_mask[i:end]
                 metrics_batch[local_mask] = -1.0
                 
@@ -239,34 +223,44 @@ def greedy_portfolio_selection_gpu(candidate_indices, all_combinations_cpu, scen
                 selected_indices_local.append(best_cand_idx)
                 selected_mask[best_cand_idx] = True
                 
-                # Recalculate hits for selected one (fast single op)
-                best_comb = candidates_pool_gpu[best_cand_idx]
+                # Get Best Comb info
+                best_comb_gpu = candidates_pool_gpu[best_cand_idx]
                 
-                # Since scenarios are transposed, we can't use simple == broadcast easily
-                # We do loop over matches or transpose back logic
-                b_hits = cp.zeros(n_sims, dtype=cp.int8)
-                for m in range(6):
-                    b_hits += (best_comb[m] == scenarios_T_gpu[m])
+                # --- DISPLAY INFO ---
+                # 1. Bet String
+                best_comb_cpu = to_cpu(best_comb_gpu)
+                bet_str = " ".join([RESULT_LABELS[x] for x in best_comb_cpu])
+
+                # 2. EV Display
+                ev_str = ""
+                if candidate_evs is not None:
+                    # best_cand_idx corresponds to the index in the passed arrays
+                    val = candidate_evs[best_cand_idx]
+                    ev_str = f"| EV:{val:6.2f}€"
+
+                # 3. Distance Display
+                dist_str = "| Dif: Ini"
+                if len(selected_indices_local) > 1:
+                    prev_indices_list = selected_indices_local[:-1]
+                    prev_indices_gpu = cp.array(prev_indices_list, dtype=cp.int32)
+                    prev_combs = candidates_pool_gpu[prev_indices_gpu]
+                    
+                    matches = cp.sum(prev_combs == best_comb_gpu, axis=1)
+                    max_overlap = int(cp.max(matches))
+                    min_diff = 6 - max_overlap
+                    dist_str = f"| Dif:{min_diff:2d} "
                 
                 # Update Earnings
+                b_hits = cp.zeros(n_sims, dtype=cp.int8)
+                for m in range(6):
+                    b_hits += (best_comb_gpu[m] == scenarios_T_gpu[m])
+                
                 current_earnings += dynamic_prizes_gpu[sim_range, b_hits]
                 
-                # Display Metrics
-                prob_target = (cp.count_nonzero(current_earnings >= float(target_size)) / n_sims) * 100
+                # Profit Metric for Display
                 prob_profit_disp = (cp.count_nonzero(current_earnings > new_cost) / n_sims) * 100
-                prob_any_disp = (cp.count_nonzero(current_earnings > 0) / n_sims) * 100
                 
-                # Overlap
-                max_match = 0
-                if len(selected_indices_local) > 1:
-                    prev_indices = cp.array(selected_indices_local[:-1], dtype=cp.int32)
-                    prev_combs = candidates_pool_gpu[prev_indices]
-                    matches = (prev_combs == best_comb)
-                    overlaps = cp.sum(matches, axis=1)
-                    max_match = int(cp.max(overlaps))
-                    
-                diff_msg = f"Ovlp:{max_match}" if len(selected_indices_local) > 1 else "Base"
-                print(f"     [Step {step+1}] #{best_cand_idx:<5} | Target({int(target_size)}€): {prob_target:5.2f}% | Profit: {prob_profit_disp:5.2f}% | Any: {prob_any_disp:5.2f}% | {diff_msg} [{time.time()-t_step:.2f}s]")
+                print(f"     [{step+1:02d}] {bet_str} {ev_str} {dist_str} | Profit: {prob_profit_disp:5.2f}% [{time.time()-t_step:.2f}s]")
                 
             else:
                 print("   ⚠️ No improvement.")

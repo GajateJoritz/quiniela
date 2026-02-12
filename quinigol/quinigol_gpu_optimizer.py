@@ -24,8 +24,8 @@ BET_PRICE = 1.0
 PRIZE_DISTRIBUTION = np.array([0.10, 0.09, 0.08, 0.08, 0.20]) 
 
 # --- SETTINGS ---
-PORTFOLIO_SIZE = 20     
-N_SIMULATIONS = 2000000  
+PORTFOLIO_SIZE = 100     
+N_SIMULATIONS = 100000  
 MIN_EV_THRESHOLD = 1.50   
 MAX_CANDIDATES_SAFETY = 20000000
 
@@ -113,7 +113,7 @@ if __name__ == "__main__":
         scenarios_gpu, LAE_PROBS_MATRIX, ESTIMATION, JACKPOT, PRIZE_DISTRIBUTION
     )
 
-    # 3. GPU OPTIMIZATION
+   # 3. GPU OPTIMIZATION
     print(f"3. [GPU] Optimizing Portfolio...")
     
     selected_local_indices, final_earnings = engine_gpu.greedy_portfolio_selection_gpu(
@@ -122,7 +122,8 @@ if __name__ == "__main__":
         scenarios_gpu, 
         dynamic_prizes_gpu,
         PORTFOLIO_SIZE, 
-        OPTIMIZATION_MODE
+        OPTIMIZATION_MODE,
+        candidate_evs=evs[top_indices]  # <--- NEW ARGUMENT
     )
     
     final_global_indices = top_indices[selected_local_indices]

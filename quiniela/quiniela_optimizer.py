@@ -13,8 +13,8 @@ import src.core_math_quiniela as engine
 TARGET_PLENO = "01"  
 
 # Ajustes de Optimización
-N_SIMULATIONS = 100000
-PORTFOLIO_SIZE = 10
+N_SIMULATIONS = 10000
+PORTFOLIO_SIZE = 100
 MIN_EV_THRESHOLD = 1.125
 
 # MODO DE SELECCIÓN:
@@ -190,6 +190,7 @@ def main():
         
         try:
             for step in range(PORTFOLIO_SIZE):
+                t_step = time.time()
                 best_idx = -1
                 best_val = -float('inf')
                 cost = step * BET_PRICE
@@ -220,7 +221,27 @@ def main():
                     txt_14 = "".join([sym[x] for x in p14])
                     txt_pleno = MAPA_PLENO[pp]
                     
-                    print(f"[{step+1:02d}] {txt_14} + {txt_pleno} | Metric:{best_val:.4f} | EV:{ev_val:.4f}")
+                    # --- CÁLCULO DE DISTANCIA ---
+                    dist_str = "Dif: Ini"
+                    if len(selected_indices) > 1:
+                        # Indices anteriores seleccionados (todos menos el último que es best_idx)
+                        prev_indices_local = selected_indices[:-1]
+                        
+                        # Recuperar apuestas anteriores y la actual
+                        prev_bets = pool_1x2[prev_indices_local] # (N_prev, 14)
+                        curr_bet = pool_1x2[best_idx]            # (14,)
+                        
+                        # Contar coincidencias (Broadcasting numpy)
+                        matches = np.sum(prev_bets == curr_bet, axis=1) # Suma booleans a lo largo del eje 1
+                        max_overlap = np.max(matches)
+                        min_diff = 14 - max_overlap
+                        dist_str = f"Dif: {min_diff:2d} "
+
+                    # --- CÁLCULO DE PROFIT ---
+                    current_invest = (step + 1) * BET_PRICE
+                    prob_profit = np.mean(earnings > current_invest) * 100
+                    
+                    print(f"[{step+1:02d}] {txt_14} + {txt_pleno} | EV:{ev_val:.4f} | {dist_str} | Profit:{prob_profit:5.2f}% [{time.time()-t_step:.2f}s]")
 
                 else: 
                     print("   No se encontraron más columnas que mejoren la cartera.")
