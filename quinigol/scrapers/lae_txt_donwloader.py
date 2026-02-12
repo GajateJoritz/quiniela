@@ -8,8 +8,8 @@ import re
 BASE_PATH = "https://www.loteriasyapuestas.es/f/loterias/documentos/El%20Quinigol/Estad%C3%ADsticas%20de%20pron%C3%B3sticos"
 
 # Estos se usarán solo si el usuario deja el input vacío
-DEFAULT_JACKPOT = 57057.16
-DEFAULT_ESTIMATION = 120000.0
+DEFAULT_JACKPOT = 0.00
+DEFAULT_ESTIMATION = 90000.0
 
 def get_current_season_strings():
     """Calcula las cadenas de temporada (Ej: 2025_2026 y 25-26)."""

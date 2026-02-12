@@ -15,7 +15,7 @@ TARGET_PLENO = "01"
 # Ajustes de Optimización
 N_SIMULATIONS = 100000
 PORTFOLIO_SIZE = 10
-MIN_EV_THRESHOLD = 1.4
+MIN_EV_THRESHOLD = 1.125
 
 # MODO DE SELECCIÓN:
 #   0 = DEBUG EV (Selecciona por puro EV Analítico, sin diversificar riesgo).
@@ -28,12 +28,7 @@ try:
     import data.current_data as current_data
     DATA_READY = True
 except ImportError:
-    try:
-        # Intentamos importar desde la raíz por si acaso
-        import current_data
-        DATA_READY = True
-    except ImportError:
-        DATA_READY = False
+    DATA_READY = False
 
 JACKPOT = getattr(current_data, 'JACKPOT', 0.0) if DATA_READY else 0.0
 ESTIMATION = getattr(current_data, 'ESTIMATION', 4000000.0) if DATA_READY else 4000000.0

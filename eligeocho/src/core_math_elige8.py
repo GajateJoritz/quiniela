@@ -9,104 +9,85 @@ def calc_taxed_prize(gross):
     return gross
 
 @njit(fastmath=True)
-def get_sum_of_products_subset_8(probs_14):
+def poisson_prize_share_heuristic(pot, total_bets, selection_prob, win_prob_given_selection):
     """
-    Calcula la suma de los productos de todos los subconjuntos de tamaño 8
-    de un array de 14 probabilidades.
-    Equivale a sumar la probabilidad de acierto de las 3003 combinaciones posibles.
-    Algoritmo: Programación Dinámica (O(14*8)).
-    """
-    # dp[k] almacenará la suma de productos de longitud k encontrados hasta ahora
-    # Necesitamos llegar hasta k=8
-    dp = np.zeros(9, dtype=np.float64)
-    dp[0] = 1.0  # Caso base: producto de 0 elementos es 1
+    Calcula premio basado en probabilidad de elección directa.
     
-    for i in range(14):
-        p = probs_14[i]
-        # Actualizamos dp de atrás hacia adelante para no usar valores de esta misma iteración
-        for j in range(8, 0, -1):
-            dp[j] = dp[j] + dp[j-1] * p
-            
-    return dp[8]
-
-@njit(fastmath=True)
-def poisson_prize_share_corrected(pot, total_winners_prob, total_bets):
+    Args:
+        selection_prob: Probabilidad de que un apostante elija esta combinación (0.0 a 1.0).
+        win_prob_given_selection: Probabilidad de acertarla una vez elegida (Real Prob).
     """
-    pot: Bote a repartir.
-    total_winners_prob: Suma de probs de las 3003 combinaciones (dp[8]).
-    total_bets: Recaudación en columnas.
-    """
-    # Normalizamos: dp[8] es la suma de probs.
-    # Si todos jugaran al azar, la prob de elegir una combinación concreta es 1/3003.
-    # Asumimos que la gente se distribuye proporcionalmente a la probabilidad (modelo de mercado eficiente).
+    # 1. Porcentaje total de boletos que coinciden con esta combinación Y aciertan
+    # (Gente que la eligió * Gente que acertó sus pronósticos)
+    total_share = selection_prob * win_prob_given_selection
     
-    # Número esperado de ganadores en TODO el sistema
-    lambda_val = total_bets * (total_winners_prob / 3003.0)
+    # 2. Número esperado de acertantes
+    lambda_val = total_bets * total_share
     
     if lambda_val < 1e-9:
         return calc_taxed_prize(pot)
     
+    # 3. Reparto
     prob_any_winner = 1.0 - np.exp(-lambda_val)
     share = prob_any_winner / lambda_val
     return calc_taxed_prize(pot * share)
 
 @njit(parallel=True, fastmath=True)
-def calculate_elige8_ev_refined(match_indices, outcomes, real_probs, lae_probs, lae_expected_hit_probs, estimation, pot):
+def calculate_elige8_ev_heuristic(match_indices, outcomes, real_probs, estimation, pot, match_log_weights, min_score, max_score, max_share=0.15, min_share=0.00001):
     """
-    Calcula el EV considerando que hay 3003 formas de ganar.
+    Calcula EV usando interpolación heurística de popularidad.
     
     Args:
-        match_indices: (N, 8) Índices de tus 8 partidos.
-        outcomes: (N, 8) Tus pronósticos.
-        real_probs: (14, 3) Probabilidad real.
-        lae_probs: (14, 3) Probabilidad LAE.
-        lae_expected_hit_probs: (14,) Probabilidad esperada de que la gente acierte cada partido
-                                (promedio ponderado para los partidos que NO elegimos).
-        estimation: Columnas jugadas.
-        pot: Bote.
+        match_log_weights: (14,) Logaritmo de los pesos de popularidad de cada partido.
+        min_score: Suma de log-pesos de la combinación más difícil posible.
+        max_score: Suma de log-pesos de la combinación más fácil posible.
+        max_share: % de la población que juega la combinación más fácil (0.15 = 15%).
+        min_share: % de la población que juega la combinación más rara.
     """
     n = match_indices.shape[0]
     evs = np.zeros(n, dtype=np.float64)
     probs_real = np.zeros(n, dtype=np.float64)
     
-    # Buffer temporal para las 14 probabilidades de un escenario concreto
-    # Como Numba parallel no permite allocar arrays dinámicos fácilmente dentro del loop,
-    # lo hacemos "in-place" o confiamos en la optimización de arrays pequeños.
+    # Precalcular log-ratio para interpolación
+    # Formula: Share = Min * (Max/Min)^NormalizedPos
+    # Log(Share) = Log(Min) + NormalizedPos * (Log(Max) - Log(Min))
+    log_min = np.log(min_share)
+    log_diff_share = np.log(max_share) - log_min
+    score_range = max_score - min_score
+    if score_range < 1e-9: score_range = 1.0 # Evitar div/0
     
     for i in prange(n):
         p_real_cum = 1.0
+        current_score = 0.0
         
-        # Construimos el array de "Probabilidades de que la gente acierte" para este escenario.
-        # Para los 8 partidos que YO juego, la probabilidad de acierto de la gente es la del signo que YO digo 
-        # (porque estoy evaluando el caso en que YO gano).
-        # Para los 6 partidos que NO juego, uso la esperanza matemática (lae_expected_hit_probs).
-        
-        current_scenario_lae_probs = np.zeros(14, dtype=np.float64)
-        
-        # 1. Rellenar con la media por defecto (para los no elegidos)
-        for k in range(14):
-            current_scenario_lae_probs[k] = lae_expected_hit_probs[k]
-            
-        # 2. Sobrescribir con los valores concretos de mi apuesta (para los 8 elegidos)
-        #    y calcular mi probabilidad real de ganar.
         for k in range(8):
             m_idx = match_indices[i, k]
             res = outcomes[i, k]
             
-            # Probabilidad de que YO acierte
+            # 1. Probabilidad Real de Ganar
             p_real_cum *= real_probs[m_idx, res]
             
-            # Si yo acierto, el resultado FUE 'res'.
-            # Por tanto, la gente acertó ese partido con probabilidad lae_probs[m_idx, res]
-            current_scenario_lae_probs[m_idx] = lae_probs[m_idx, res]
-        
+            # 2. Popularidad (Score)
+            # Sumamos el peso del partido (cuánto atrae a la gente)
+            current_score += match_log_weights[m_idx]
+            
         probs_real[i] = p_real_cum
         
-        # 3. Calcular cuánta gente gana en TOTAL (sumando las 3003 combinaciones)
-        #    dado este escenario de resultados.
-        sum_probs_3003 = get_sum_of_products_subset_8(current_scenario_lae_probs)
+        # 3. Calcular Probabilidad de Selección (Crowding)
+        # Normalizamos el score entre 0 (nadie la juega) y 1 (todos la juegan)
+        normalized_pos = (current_score - min_score) / score_range
         
-        estimated_prize = poisson_prize_share_corrected(pot, sum_probs_3003, estimation)
+        # Interpolamos exponencialmente el Share
+        # Si normalized_pos es 1 (Favoritos) -> usa max_share (15%)
+        log_share = log_min + (normalized_pos * log_diff_share)
+        selection_prob = np.exp(log_share)
+        
+        # 4. Calcular Premio
+        # Asumimos que si la gente elige esta combinación, apuesta al signo favorito (o al que pusimos)
+        # Simplificación: El selection_prob ya captura la "masificación" de la columna.
+        # Usamos p_real_cum como proxy de la dificultad del signo.
+        
+        estimated_prize = poisson_prize_share_heuristic(pot, estimation, selection_prob, p_real_cum)
         
         evs[i] = p_real_cum * estimated_prize
         

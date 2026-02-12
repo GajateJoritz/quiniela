@@ -22,8 +22,8 @@ except ImportError:
 # -------------------------------------------------------------------------
 
 # Datos Oficiales (Post-Cierre)
-JACKPOT = 2360075.17   # Bote (Euros) - Pon 0 si no hay
-ESTIMACION = 4500000.0   # Recaudación de la jornada
+JACKPOT = 0.0
+ESTIMATION = 1100000.0  # Recaudación de la jornada
 PRECIO_APUESTA = 0.75    # Precio por columna (0.75€ estándar)
 
 DIST_PREMIOS = np.array([0.075, 0.16, 0.075, 0.075, 0.075, 0.09])
@@ -32,14 +32,12 @@ DIST_PREMIOS = np.array([0.075, 0.16, 0.075, 0.075, 0.075, 0.09])
 # 3. TUS APUESTAS
 # -------------------------------------------------------------------------
 TEXTO_APUESTAS = """
-01: 1111111122X1X2 + 01 | EV: 1.4139 €
-02: 11111X1112211X + 01 | EV: 1.4469 €
-03: 1111X11112X21X + 01 | EV: 1.4907 €
-04: 1111111212X121 + 01 | EV: 1.5641 €
-05: 1111111221X11X + 01 | EV: 1.4216 €
-06: 1111X1111211X2 + 01 | EV: 1.4314 €
-07: 1112111122211X + 01 | EV: 1.4058 €
-08: 11111111112X12 + 01 | EV: 1.4173 €
+01: 22X22121122122 + 01 | EV: 1.1268 €
+02: 22222221X12121 + 01 | EV: 1.1437 €
+03: 12X22121111121 + 01 | EV: 1.1710 €
+04: 11X22221121111 + 01 | EV: 1.1552 €
+05: 12X22X21X1X112 + 01 | EV: 1.1567 €
+06: 21122121X1X111 + 01 | EV: 1.1283 €
 """
 
 # -------------------------------------------------------------------------
@@ -47,22 +45,22 @@ TEXTO_APUESTAS = """
 # -------------------------------------------------------------------------
 TEXTO_LAE_1X2 = """
 <quinielista>
-<porcentajes jornada="40" temporada="2026" activo="si">
-<partido num="1" local="RAYO" visitante="R.OVIEDO" porc_1="61" porc_X="25" porc_2="14"/>
-<partido num="2" local="BARCELONA" visitante="MALLORCA" porc_1="92" porc_X="5" porc_2="3"/>
-<partido num="3" local="SEVILLA" visitante="GIRONA" porc_1="46" porc_X="30" porc_2="24"/>
-<partido num="4" local="R.SOCIEDAD" visitante="ELCHE" porc_1="70" porc_X="19" porc_2="11"/>
-<partido num="5" local="ALAVÉS" visitante="GETAFE" porc_1="42" porc_X="37" porc_2="21"/>
-<partido num="6" local="ATH.CLUB" visitante="LEVANTE" porc_1="74" porc_X="17" porc_2="9"/>
-<partido num="7" local="AT.MADRID" visitante="BETIS" porc_1="76" porc_X="16" porc_2="8"/>
-<partido num="8" local="VILLARREAL" visitante="ESPANYOL" porc_1="71" porc_X="18" porc_2="11"/>
-<partido num="9" local="CÁDIZ" visitante="ALMERÍA" porc_1="30" porc_X="34" porc_2="36"/>
-<partido num="10" local="VALLADOLID" visitante="CASTELLÓN" porc_1="29" porc_X="28" porc_2="43"/>
-<partido num="11" local="CEUTA" visitante="CÓRDOBA" porc_1="30" porc_X="35" porc_2="35"/>
-<partido num="12" local="DEPORTIVO" visitante="ALBACETE" porc_1="67" porc_X="20" porc_2="13"/>
-<partido num="13" local="SPORTING" visitante="HUESCA" porc_1="65" porc_X="24" porc_2="11"/>
-<partido num="14" local="MÁLAGA" visitante="C. LEONESA" porc_1="76" porc_X="15" porc_2="9"/>
-<partido num="15" local="VALENCIA" visitante="R.MADRID" porc_15L_0="25" porc_15L_1="57" porc_15L_2="15" porc_15L_M="3" porc_15V_0="3" porc_15V_1="16" porc_15V_2="37" porc_15V_M="44"/>
+<porcentajes jornada="41" temporada="2026" activo="si">
+<partido num="1" local="ATH.CLUB" visitante="R.SOCIEDAD" porc_1="46" porc_X="30" porc_2="24"/>
+<partido num="2" local="AT.MADRID" visitante="BARCELONA" porc_1="26" porc_X="23" porc_2="51"/>
+<partido num="3" local="CHELSEA" visitante="LEEDS" porc_1="86" porc_X="8" porc_2="6"/>
+<partido num="4" local="EVERTON" visitante="BOURNEMOUTH" porc_1="52" porc_X="28" porc_2="20"/>
+<partido num="5" local="TOTTENHAM" visitante="NEWCASTLE" porc_1="41" porc_X="29" porc_2="30"/>
+<partido num="6" local="WEST HAM" visitante="MAN.UNITED" porc_1="13" porc_X="17" porc_2="70"/>
+<partido num="7" local="ASTON VILLA" visitante="BRIGHTON" porc_1="78" porc_X="13" porc_2="9"/>
+<partido num="8" local="CRYSTAL PALACE" visitante="BURNLEY" porc_1="73" porc_X="18" porc_2="9"/>
+<partido num="9" local="MAN.CITY" visitante="FULHAM" porc_1="89" porc_X="6" porc_2="5"/>
+<partido num="10" local="NOTTINGHAM" visitante="WOLVERHAMPTON" porc_1="67" porc_X="22" porc_2="11"/>
+<partido num="11" local="BRENTFORD" visitante="ARSENAL" porc_1="10" porc_X="15" porc_2="75"/>
+<partido num="12" local="CELTIC" visitante="LIVINGSTON" porc_1="88" porc_X="7" porc_2="5"/>
+<partido num="13" local="DUNDEE UNITED" visitante="ABERDEEN" porc_1="39" porc_X="35" porc_2="26"/>
+<partido num="14" local="MOTHERWELL" visitante="RANGERS" porc_1="20" porc_X="27" porc_2="53"/>
+<partido num="15" local="SUNDERLAND" visitante="LIVERPOOL" porc_15L_0="25" porc_15L_1="56" porc_15L_2="16" porc_15L_M="3" porc_15V_0="4" porc_15V_1="20" porc_15V_2="41" porc_15V_M="35"/>
 </porcentajes>
 </quinielista>
 """
@@ -78,28 +76,31 @@ Partido 15: 10 5 2 1 15 20 5 2 8 5 3 1 5 2 1 15
 # Nota: CUOTAS_REALES_1X2 es una lista con un string XML dentro.
 CUOTAS_REALES_1X2 = ["""
 <quinielista>
-<porcentajes jornada="40" temporada="2026" activo="si">
-<partido num="1" local="RAYO" visitante="R.OVIEDO" porc_1="62" porc_X="25" porc_2="13" porcDec_1="62" porcDec_X="25" porcDec_2="13"/>
-<partido num="2" local="BARCELONA" visitante="MALLORCA" porc_1="83" porc_X="11" porc_2="6" porcDec_1="82.79" porcDec_X="11.18" porcDec_2="6.03"/>
-<partido num="3" local="SEVILLA" visitante="GIRONA" porc_1="45" porc_X="28" porc_2="27" porcDec_1="44.83" porcDec_X="28.19" porcDec_2="26.98"/>
-<partido num="4" local="R.SOCIEDAD" visitante="ELCHE" porc_1="57" porc_X="24" porc_2="19" porcDec_1="57.35" porcDec_X="24.18" porcDec_2="18.47"/>
-<partido num="5" local="ALAVÉS" visitante="GETAFE" porc_1="41" porc_X="34" porc_2="25" porcDec_1="40.48" porcDec_X="34.17" porcDec_2="25.35"/>
-<partido num="6" local="ATH.CLUB" visitante="LEVANTE" porc_1="59" porc_X="24" porc_2="17" porcDec_1="58.76" porcDec_X="24.23" porcDec_2="17.01"/>
-<partido num="7" local="AT.MADRID" visitante="BETIS" porc_1="65" porc_X="21" porc_2="14" porcDec_1="64.79" porcDec_X="20.69" porcDec_2="14.52"/>
-<partido num="8" local="VILLARREAL" visitante="ESPANYOL" porc_1="56" porc_X="23" porc_2="21" porcDec_1="56.12" porcDec_X="23.37" porcDec_2="20.51"/>
-<partido num="9" local="CÁDIZ" visitante="ALMERÍA" porc_1="36" porc_X="28" porc_2="36" porcDec_1="35.5" porcDec_X="28.31" porcDec_2="36.19"/>
-<partido num="10" local="VALLADOLID" visitante="CASTELLÓN" porc_1="30" porc_X="28" porc_2="42" porcDec_1="30.21" porcDec_X="28.12" porcDec_2="41.67"/>
-<partido num="11" local="CEUTA" visitante="CÓRDOBA" porc_1="30" porc_X="35" porc_2="35" porcDec_1="30" porcDec_X="35" porcDec_2="35"/>
-<partido num="12" local="DEPORTIVO" visitante="ALBACETE" porc_1="53" porc_X="26" porc_2="21" porcDec_1="53.32" porcDec_X="25.57" porcDec_2="21.11"/>
-<partido num="13" local="SPORTING" visitante="HUESCA" porc_1="51" porc_X="29" porc_2="20" porcDec_1="50.97" porcDec_X="28.79" porcDec_2="20.24"/>
-<partido num="14" local="MÁLAGA" visitante="C. LEONESA" porc_1="54" porc_X="26" porc_2="20" porcDec_1="54.16" porcDec_X="26.31" porcDec_2="19.53"/>
-<partido num="15" local="VALENCIA" visitante="R.MADRID" porc_15L_0="40" porc_15L_1="37" porc_15L_2="17" porc_15L_M="6" porc_15V_0="15" porc_15V_1="28" porc_15V_2="27" porc_15V_M="30" porcDec_15L_0="40.02" porcDec_15L_1="36.65" porcDec_15L_2="16.78" porcDec_15L_M="6.55" porcDec_15V_0="14.61" porcDec_15V_1="28.1" porcDec_15V_2="27.03" porcDec_15V_M="30.26"/>
+<porcentajes jornada="41" temporada="2026" activo="si">
+<partido num="1" local="ATH.CLUB" visitante="R.SOCIEDAD" porc_1="42" porc_X="29" porc_2="29" porcDec_1="42.07" porcDec_X="29.45" porcDec_2="28.48"/>
+<partido num="2" local="AT.MADRID" visitante="BARCELONA" porc_1="31" porc_X="24" porc_2="45" porcDec_1="30.98" porcDec_X="24.4" porcDec_2="44.62"/>
+<partido num="3" local="CHELSEA" visitante="LEEDS" porc_1="63" porc_X="21" porc_2="16" porcDec_1="63.12" porcDec_X="21.18" porcDec_2="15.7"/>
+<partido num="4" local="EVERTON" visitante="BOURNEMOUTH" porc_1="39" porc_X="28" porc_2="33" porcDec_1="38.97" porcDec_X="28.53" porcDec_2="32.5"/>
+<partido num="5" local="TOTTENHAM" visitante="NEWCASTLE" porc_1="30" porc_X="27" porc_2="43" porcDec_1="29.99" porcDec_X="26.58" porcDec_2="43.43"/>
+<partido num="6" local="WEST HAM" visitante="MAN.UNITED" porc_1="22" porc_X="23" porc_2="55" porcDec_1="22.14" porcDec_X="22.94" porcDec_2="54.92"/>
+<partido num="7" local="ASTON VILLA" visitante="BRIGHTON" porc_1="48" porc_X="27" porc_2="25" porcDec_1="48.17" porcDec_X="26.48" porcDec_2="25.35"/>
+<partido num="8" local="CRYSTAL PALACE" visitante="BURNLEY" porc_1="62" porc_X="23" porc_2="15" porcDec_1="62.49" porcDec_X="22.66" porcDec_2="14.85"/>
+<partido num="9" local="MAN.CITY" visitante="FULHAM" porc_1="70" porc_X="18" porc_2="12" porcDec_1="70.1" porcDec_X="17.75" porcDec_2="12.15"/>
+<partido num="10" local="NOTTINGHAM" visitante="WOLVERHAMPTON" porc_1="56" porc_X="25" porc_2="19" porcDec_1="56.11" porcDec_X="25.18" porcDec_2="18.71"/>
+<partido num="11" local="BRENTFORD" visitante="ARSENAL" porc_1="20" porc_X="24" porc_2="56" porcDec_1="19.64" porcDec_X="24.32" porcDec_2="56.04"/>
+<partido num="12" local="CELTIC" visitante="LIVINGSTON" porc_1="78" porc_X="16" porc_2="6" porcDec_1="78.11" porcDec_X="15.5" porcDec_2="6.39"/>
+<partido num="13" local="DUNDEE UNITED" visitante="ABERDEEN" porc_1="39" porc_X="28" porc_2="33" porcDec_1="39.09" porcDec_X="28" porcDec_2="32.91"/>
+<partido num="14" local="MOTHERWELL" visitante="RANGERS" porc_1="29" porc_X="26" porc_2="45" porcDec_1="28.54" porcDec_X="26.23" porcDec_2="45.23"/>
+<partido num="15" local="SUNDERLAND" visitante="LIVERPOOL" porc_15L_0="38" porc_15L_1="37" porc_15L_2="18" porc_15L_M="7" porc_15V_0="17" porc_15V_1="30" porc_15V_2="27" porc_15V_M="26" porcDec_15L_0="37.81" porcDec_15L_1="36.77" porcDec_15L_2="17.88" porcDec_15L_M="7.54" porcDec_15V_0="16.83" porcDec_15V_1="29.99" porcDec_15V_2="26.72" porcDec_15V_M="26.46"/>
 </porcentajes>
 </quinielista>
 """]
 
+
+
+
 # Odds reales para el P15 (16 valores)
-CUOTAS_REALES_PLENO = [17.00,9.00,8.50,7.00,17.00,8.50,8.50,7.00,29.00,15.00,15.00,12.00,61.00,36.00,34.00,21.00]
+CUOTAS_REALES_PLENO = [11.00,8.00,9.00,9.00,15.00,7.50,9.00,8.50,29.00,17.00,17.00,15.00,67.00,34.00,36.00,29.00]
 
 # -------------------------------------------------------------------------
 # 6. FUNCIONES DE PARSEO
@@ -246,7 +247,7 @@ def main():
             c_1x2, c_p15,
             real_1x2, real_p15,
             lae_1x2, lae_p15,
-            float(ESTIMACION), float(JACKPOT), DIST_PREMIOS
+            float(ESTIMATION), float(JACKPOT), DIST_PREMIOS
         )
 
         # 5. Mostrar
